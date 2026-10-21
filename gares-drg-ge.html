@@ -18,6 +18,30 @@
 <script type="module">
     import * as maplibregl from 'https://unpkg.com/maplibre-gl@6.15.0/dist/maplibre-gl.mjs';
 
+    // data.geopf.fr limite le débit (429) : on réessaie après le délai Retry-After,
+    // avec un léger décalage aléatoire pour ne pas renvoyer toutes les tuiles en même temps
+    async function fetchGeopf(url, signal, onRetry) {
+        for (let attempt = 0; ; attempt++) {
+            const response = await fetch(url, { signal });
+            if (response.status !== 429 || attempt >= 5) {
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                return response;
+            }
+            onRetry?.();
+            const wait = (parseFloat(response.headers.get('retry-after')) || 1) * 1000 + Math.random() * 1000;
+            await new Promise((resolve, reject) => {
+                const timer = setTimeout(resolve, wait);
+                signal?.addEventListener('abort', () => { clearTimeout(timer); reject(signal.reason); }, { once: true });
+            });
+        }
+    }
+
+    // Les tuiles en geopf:// passent par fetchGeopf (abandon automatique si la tuile n'est plus utile)
+    maplibregl.addProtocol('geopf', async (params, abortController) => {
+        const response = await fetchGeopf(params.url.replace('geopf://', 'https://'), abortController.signal);
+        return { data: await response.arrayBuffer() };
+    });
+
     const params = new URLSearchParams(window.location.search);
     const zoom = parseFloat(params.get('z')) || 12;
     const lng = parseFloat(params.get('x')) || 2.35;
@@ -30,7 +54,7 @@
             sources: {
                 'bdortho': {
                     type: 'raster',
-                    tiles: ['https://data.geopf.fr/wmts?SERVICE=WMTS&VERSION=1.0.0&REQUEST=GetTile&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&FORMAT=image/jpeg&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}'],
+                    tiles: ['geopf://data.geopf.fr/wmts?SERVICE=WMTS&VERSION=1.0.0&REQUEST=GetTile&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&FORMAT=image/jpeg&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}'],
                     tileSize: 256
                 }
             },
@@ -43,8 +67,9 @@
     map.on('load', () => {
         map.addSource('ign-wms', {
             type: 'raster',
-            tiles: ['https://data.geopf.fr/wms-v/ows?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&LAYERS=conservation_du_patrimoine&STYLES=default-style-conservation_du_patrimoine&FORMAT=image/png&TRANSPARENT=TRUE&CRS=EPSG:3857&WIDTH=256&HEIGHT=256&BBOX={bbox-epsg-3857}'],
-            tileSize: 256
+            // Tuiles de 512 px : 4 fois moins de requêtes GetMap qu'en 256 px
+            tiles: ['geopf://data.geopf.fr/wms-v/ows?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&LAYERS=conservation_du_patrimoine&STYLES=default-style-conservation_du_patrimoine&FORMAT=image/png&TRANSPARENT=TRUE&CRS=EPSG:3857&WIDTH=512&HEIGHT=512&BBOX={bbox-epsg-3857}'],
+            tileSize: 512
         });
         map.addLayer({ id: 'ign-layer', type: 'raster', source: 'ign-wms' });
                 map.addSource('center-point', {
@@ -115,25 +140,14 @@
             .setLngLat(e.lngLat)
             .setHTML('Chargement…')
             .addTo(map);
+        const controller = new AbortController();
+        popup.on('close', () => controller.abort());
         try {
-            // data.geopf.fr limite le débit (429) : on réessaie après le délai Retry-After
-            for (let attempt = 0; attempt < 5; attempt++) {
-                const response = await fetch(url);
-                if (response.status === 429) {
-                    if (!popup.isOpen()) return;
-                    const wait = (parseFloat(response.headers.get('retry-after')) || 1) * 1000;
-                    popup.setHTML('Serveur saturé, nouvel essai…');
-                    await new Promise((resolve) => setTimeout(resolve, wait));
-                    continue;
-                }
-                if (!response.ok) throw new Error(response.status);
-                const content = renderFeatureInfo(await response.text());
-                popup.setHTML(content || 'Aucune information à cet endroit.');
-                return;
-            }
-            popup.setHTML('Serveur saturé, réessayez dans quelques secondes.');
+            const response = await fetchGeopf(url, controller.signal, () => popup.setHTML('Serveur saturé, nouvel essai…'));
+            const content = renderFeatureInfo(await response.text());
+            popup.setHTML(content || 'Aucune information à cet endroit.');
         } catch (err) {
-            popup.setHTML('Erreur lors de la récupération des informations.');
+            if (!controller.signal.aborted) popup.setHTML('Erreur lors de la récupération des informations.');
         }
     });
 </script>
