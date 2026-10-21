@@ -116,9 +116,22 @@
             .setHTML('Chargement…')
             .addTo(map);
         try {
-            const response = await fetch(url);
-            const content = renderFeatureInfo(await response.text());
-            popup.setHTML(content || 'Aucune information à cet endroit.');
+            // data.geopf.fr limite le débit (429) : on réessaie après le délai Retry-After
+            for (let attempt = 0; attempt < 5; attempt++) {
+                const response = await fetch(url);
+                if (response.status === 429) {
+                    if (!popup.isOpen()) return;
+                    const wait = (parseFloat(response.headers.get('retry-after')) || 1) * 1000;
+                    popup.setHTML('Serveur saturé, nouvel essai…');
+                    await new Promise((resolve) => setTimeout(resolve, wait));
+                    continue;
+                }
+                if (!response.ok) throw new Error(response.status);
+                const content = renderFeatureInfo(await response.text());
+                popup.setHTML(content || 'Aucune information à cet endroit.');
+                return;
+            }
+            popup.setHTML('Serveur saturé, réessayez dans quelques secondes.');
         } catch (err) {
             popup.setHTML('Erreur lors de la récupération des informations.');
         }
