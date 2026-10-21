@@ -3,9 +3,13 @@
 <head>
     <meta charset="utf-8">
     <title>IGN WMS MapLibre</title>
-    <link rel="stylesheet" href="https://unpkg.com@^6/dist/maplibre-gl.css">
+    <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@6.15.0/dist/maplibre-gl.css">
     <style>
         html, body, #map { height: 100%; margin: 0; }
+        .maplibregl-canvas { cursor: pointer; }
+        .info-popup .maplibregl-popup-content { max-height: 200px; overflow-y: auto; padding: 6px 22px 6px 8px; font: 12px/1.3 sans-serif; }
+        .info-popup .feature span { color: #666; }
+        .info-popup .feature + .feature { margin-top: 4px; padding-top: 4px; border-top: 1px solid #ddd; }
     </style>
 </head>
 <body>
@@ -69,6 +73,55 @@
                 'circle-stroke-color': '#ffffff'
             }
         });
+    });
+
+    const escapeHtml = (str) => str.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+    // Convertit la réponse HTML de GeoServer en contenu compact : nom + type de servitude
+    function renderFeatureInfo(html) {
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        const parts = [];
+        doc.querySelectorAll('table.featureInfo').forEach((table) => {
+            const headers = [...table.querySelectorAll('tr:first-child th')].map((th) => th.textContent.trim());
+            [...table.querySelectorAll('tr')].slice(1).forEach((tr) => {
+                const cells = [...tr.querySelectorAll('td')].map((td) => td.textContent.trim());
+                const props = {};
+                headers.forEach((h, i) => { props[h] = cells[i] || ''; });
+                const name = props.nomsuplitt || props.nomass;
+                if (!name) return;
+                const details = [props.suptype && props.suptype.toUpperCase(), props.typeass].filter(Boolean).join(' · ');
+                const link = /^https?:\/\//.test(props.urlreg) ? ` <a href="${escapeHtml(props.urlreg)}" target="_blank" rel="noopener">↗</a>` : '';
+                parts.push(`<div class="feature"><b>${escapeHtml(name)}</b>${link}${details ? `<br><span>${escapeHtml(details)}</span>` : ''}</div>`);
+            });
+        });
+        return [...new Set(parts)].join('');
+    }
+
+    // Au clic : GetFeatureInfo sur la couche WMS et affichage dans un tooltip
+    map.on('click', async (e) => {
+        const R = 6378137;
+        const x = e.lngLat.lng * Math.PI / 180 * R;
+        const y = Math.log(Math.tan(Math.PI / 4 + e.lngLat.lat * Math.PI / 360)) * R;
+        const size = 11; // fenêtre de tolérance en pixels autour du clic
+        const res = 2 * Math.PI * R / (512 * Math.pow(2, map.getZoom()));
+        const half = res * size / 2;
+        const url = 'https://data.geopf.fr/wms-v/ows?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetFeatureInfo'
+            + '&LAYERS=conservation_du_patrimoine&QUERY_LAYERS=conservation_du_patrimoine&STYLES='
+            + '&INFO_FORMAT=text/html&FEATURE_COUNT=10&CRS=EPSG:3857'
+            + `&WIDTH=${size}&HEIGHT=${size}&I=${Math.floor(size / 2)}&J=${Math.floor(size / 2)}`
+            + `&BBOX=${x - half},${y - half},${x + half},${y + half}`;
+
+        const popup = new maplibregl.Popup({ className: 'info-popup', maxWidth: '260px' })
+            .setLngLat(e.lngLat)
+            .setHTML('Chargement…')
+            .addTo(map);
+        try {
+            const response = await fetch(url);
+            const content = renderFeatureInfo(await response.text());
+            popup.setHTML(content || 'Aucune information à cet endroit.');
+        } catch (err) {
+            popup.setHTML('Erreur lors de la récupération des informations.');
+        }
     });
 </script>
 </body>
