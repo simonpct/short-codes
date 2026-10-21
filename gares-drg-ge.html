@@ -24,10 +24,9 @@
         style: {
             version: 8,
             sources: {
-                'osm': {
+                'bdortho': {
                     type: 'raster',
-                    // CORRECTION ICI : Ajout du sous-domaine 'tile.' et des slashes adéquats
-                    tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+                    tiles: ['https://data.geopf.fr/wmts?SERVICE=WMTS&VERSION=1.0.0&REQUEST=GetTile&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&FORMAT=image/jpeg&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}'],
                     tileSize: 256
                 }
             },
@@ -44,6 +43,32 @@
             tileSize: 256
         });
         map.addLayer({ id: 'ign-layer', type: 'raster', source: 'ign-wms' });
+                map.addSource('center-point', {
+            type: 'geojson',
+            data: {
+                type: 'FeatureCollection',
+                features: [{
+                    type: 'Feature',
+                    geometry: {
+                        type: 'Point',
+                        coordinates: [lng, lat] // Utilise les variables de l'URL
+                    }
+                }]
+            }
+        });
+
+        // 3. Dessin du point rouge sur la carte
+        map.addLayer({
+            id: 'center-point-layer',
+            type: 'circle',
+            source: 'center-point',
+            paint: {
+                'circle-radius': 8,          // Taille du point en pixels
+                'circle-color': '#ff0000',    // Couleur rouge pure
+                'circle-stroke-width': 2,     // Bordure blanche pour le contraste
+                'circle-stroke-color': '#ffffff'
+            }
+        });
     });
 </script>
 </body>
