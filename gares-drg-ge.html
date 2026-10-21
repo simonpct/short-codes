@@ -3,8 +3,7 @@
 <head>
     <meta charset="utf-8">
     <title>IGN WMS MapLibre</title>
-    <!-- Le fichier CSS reste inchangé -->
-    <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@^6/dist/maplibre-gl.css">
+    <link rel="stylesheet" href="https://unpkg.com@^6/dist/maplibre-gl.css">
     <style>
         html, body, #map { height: 100%; margin: 0; }
     </style>
@@ -12,10 +11,8 @@
 <body>
 <div id="map"></div>
 
-<!-- 1. Notez l'ajout de type="module" ici -->
 <script type="module">
-    // 2. Importation explicite de l'objet de cartographie moderne
-    import * as maplibregl from 'https://unpkg.com/maplibre-gl@^6/dist/maplibre-gl.mjs';
+    import * as maplibregl from 'https://unpkg.com@^6/dist/maplibre-gl.mjs';
 
     const params = new URLSearchParams(window.location.search);
     const zoom = parseFloat(params.get('z')) || 12;
@@ -29,7 +26,8 @@
             sources: {
                 'osm': {
                     type: 'raster',
-                    tiles: ['https://openstreetmap.org{z}/{x}/{y}.png'],
+                    // CORRECTION ICI : Ajout du sous-domaine 'tile.' et des slashes adéquats
+                    tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
                     tileSize: 256
                 }
             },
@@ -42,7 +40,7 @@
     map.on('load', () => {
         map.addSource('ign-wms', {
             type: 'raster',
-            tiles: ['https://geopf.fr{bbox-epsg-3857}'],
+            tiles: ['https://data.geopf.fr/wms-v/ows?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&LAYERS=conservation_du_patrimoine&STYLES=default-style-conservation_du_patrimoine&FORMAT=image/png&TRANSPARENT=TRUE&CRS=EPSG:3857&WIDTH=256&HEIGHT=256&BBOX={bbox-epsg-3857}'],
             tileSize: 256
         });
         map.addLayer({ id: 'ign-layer', type: 'raster', source: 'ign-wms' });
