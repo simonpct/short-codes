@@ -3,20 +3,39 @@
 <head>
     <meta charset="utf-8">
     <title>IGN WMS MapLibre</title>
-    <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@6.15.0/dist/maplibre-gl.css">
+    <link rel="stylesheet" href="vendor/maplibre-gl/maplibre-gl.css">
     <style>
         html, body, #map { height: 100%; margin: 0; }
         .maplibregl-canvas { cursor: pointer; }
         .info-popup .maplibregl-popup-content { max-height: 200px; overflow-y: auto; padding: 6px 22px 6px 8px; font: 12px/1.3 sans-serif; }
         .info-popup .feature span { color: #666; }
         .info-popup .feature + .feature { margin-top: 4px; padding-top: 4px; border-top: 1px solid #ddd; }
+        .layer-panel { position: absolute; top: 10px; right: 10px; z-index: 1; padding: 6px 10px; background: #fff; border-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,.3); font: 13px/1.6 sans-serif; }
+        .layer-panel label { display: block; cursor: pointer; }
+        .layer-panel small { display: block; color: #666; }
+        .search-box { position: absolute; top: 10px; left: 10px; z-index: 1; width: 280px; font: 13px/1.4 sans-serif; }
+        .search-box input { width: 100%; box-sizing: border-box; padding: 6px 8px; border: 1px solid #ccc; border-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,.3); }
+        .search-results { margin: 4px 0 0; padding: 0; list-style: none; background: #fff; border-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,.3); }
+        .search-results li { padding: 6px 8px; cursor: pointer; }
+        .search-results li + li { border-top: 1px solid #eee; }
+        .search-results li:hover { background: #f2f2f2; }
     </style>
 </head>
 <body>
 <div id="map"></div>
+<form id="search" class="search-box" autocomplete="off">
+    <input type="search" name="q" placeholder="Rechercher une gare…">
+    <ul id="search-results" class="search-results" hidden></ul>
+</form>
+<div id="layers" class="layer-panel">
+    <label><input type="checkbox" data-layer="bdortho-layer" checked> Orthophotos</label>
+    <label><input type="checkbox" data-layer="ign-layer" checked> Patrimoine (WMS)</label>
+    <label><input type="checkbox" data-layer="prescriptions-surf-layer,prescriptions-surf-outline,prescriptions-layer" checked> Bâtis protégés (WFS)</label>
+    <small id="zoom-hint" hidden>Zoomez à 13 ou plus pour les bâtis</small>
+</div>
 
 <script type="module">
-    import * as maplibregl from 'https://unpkg.com/maplibre-gl@6.15.0/dist/maplibre-gl.mjs';
+    import * as maplibregl from './vendor/maplibre-gl/maplibre-gl.mjs';
 
     // data.geopf.fr limite le débit (429) : on réessaie après le délai Retry-After,
     // avec un léger décalage aléatoire pour ne pas renvoyer toutes les tuiles en même temps
@@ -72,7 +91,42 @@
             tileSize: 512
         });
         map.addLayer({ id: 'ign-layer', type: 'raster', source: 'ign-wms' });
-                map.addSource('center-point', {
+
+        // Couches vecteur alimentées par le WFS (voir loadPrescriptions) : surfaces sous les ponctuelles
+        map.addSource('prescriptions-surf', { type: 'geojson', data: EMPTY_FEATURES });
+        map.addLayer({
+            id: 'prescriptions-surf-layer',
+            type: 'fill',
+            source: 'prescriptions-surf',
+            paint: {
+                'fill-color': '#2e7d32',
+                'fill-opacity': 0.3
+            }
+        });
+        map.addLayer({
+            id: 'prescriptions-surf-outline',
+            type: 'line',
+            source: 'prescriptions-surf',
+            paint: {
+                'line-color': '#2e7d32',
+                'line-width': 1
+            }
+        });
+
+        map.addSource('prescriptions', { type: 'geojson', data: EMPTY_FEATURES });
+        map.addLayer({
+            id: 'prescriptions-layer',
+            type: 'circle',
+            source: 'prescriptions',
+            paint: {
+                'circle-radius': 4,
+                'circle-color': '#2e7d32',
+                'circle-stroke-width': 1,
+                'circle-stroke-color': '#ffffff'
+            }
+        });
+
+        map.addSource('center-point', {
             type: 'geojson',
             data: {
                 type: 'FeatureCollection',
@@ -98,9 +152,79 @@
                 'circle-stroke-color': '#ffffff'
             }
         });
+
+        map.on('moveend', loadPrescriptions);
+        loadPrescriptions();
+
+        // Survol d'une prescription : tooltip avec son libellé et son code typepsc-stypepsc
+        const hoverPopup = new maplibregl.Popup({ className: 'info-popup', closeButton: false, closeOnClick: false, offset: 8 });
+        for (const layer of ['prescriptions-layer', 'prescriptions-surf-layer']) {
+            map.on('mousemove', layer, (e) => {
+                const p = e.features[0].properties;
+                const label = p.libelle || 'Prescription';
+                hoverPopup.setLngLat(e.lngLat)
+                    .setHTML(`<div class="feature"><b>${escapeHtml(label)}</b><br><span>Prescription ${escapeHtml(p.typepsc)}-${escapeHtml(p.stypepsc)}</span></div>`)
+                    .addTo(map);
+            });
+            map.on('mouseleave', layer, () => hoverPopup.remove());
+        }
     });
 
-    const escapeHtml = (str) => str.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    // Prescriptions ponctuelles (WFS du Géoportail de l'urbanisme) : arbres protégés,
+    // typepsc 07 avec sous-type 05 ou 06, chargées pour l'emprise visible
+    const EMPTY_FEATURES = { type: 'FeatureCollection', features: [] };
+    const PRESCRIPTIONS_MIN_ZOOM = 13; // en dessous, l'emprise est trop grande pour charger les données
+    // Source GeoJSON -> couche WFS correspondante
+    const PRESCRIPTIONS_TYPENAMES = {
+        'prescriptions': 'wfs_du:prescription_pct',
+        'prescriptions-surf': 'wfs_du:prescription_surf'
+    };
+    let prescriptionsController = null;
+
+    async function loadPrescriptions() {
+        prescriptionsController?.abort();
+        const visible = map.getLayoutProperty('prescriptions-layer', 'visibility') !== 'none';
+        const zoomOk = map.getZoom() >= PRESCRIPTIONS_MIN_ZOOM;
+        document.getElementById('zoom-hint').hidden = !visible || zoomOk;
+        if (!visible || !zoomOk) {
+            for (const sourceId of Object.keys(PRESCRIPTIONS_TYPENAMES)) map.getSource(sourceId).setData(EMPTY_FEATURES);
+            return;
+        }
+
+        const controller = new AbortController();
+        prescriptionsController = controller;
+        const b = map.getBounds();
+        const bbox = `BBOX(the_geom,${b.getWest()},${b.getSouth()},${b.getEast()},${b.getNorth()},'EPSG:4326')`;
+        await Promise.all(Object.entries(PRESCRIPTIONS_TYPENAMES).map(async ([sourceId, typename]) => {
+            const query = new URLSearchParams({
+                SERVICE: 'WFS',
+                VERSION: '2.0.0',
+                REQUEST: 'GetFeature',
+                TYPENAMES: typename,
+                OUTPUTFORMAT: 'application/json',
+                COUNT: '5000',
+                CQL_FILTER: `${bbox} AND typepsc IN ('07', '07-05','07-06')`
+            });
+            try {
+                const response = await fetchGeopf(`https://data.geopf.fr/wfs/ows?${query}`, controller.signal);
+                map.getSource(sourceId).setData(await response.json());
+            } catch (err) {
+                if (!controller.signal.aborted) console.warn(`${typename} indisponible`, err);
+            }
+        }));
+    }
+
+    // Panneau de couches : affiche ou masque les couches listées dans data-layer
+    document.querySelectorAll('#layers input[data-layer]').forEach((input) => {
+        input.addEventListener('change', () => {
+            for (const layer of input.dataset.layer.split(',')) {
+                map.setLayoutProperty(layer, 'visibility', input.checked ? 'visible' : 'none');
+            }
+            if (input.dataset.layer.includes('prescriptions-layer')) loadPrescriptions();
+        });
+    });
+
+    const escapeHtml = (str) => String(str ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
     // Convertit la réponse HTML de GeoServer en contenu compact : nom + type de servitude
     function renderFeatureInfo(html) {
@@ -149,6 +273,80 @@
         } catch (err) {
             if (!controller.signal.aborted) popup.setHTML('Erreur lors de la récupération des informations.');
         }
+    });
+
+    // Gares voyageurs (SNCF Open Data) : liste chargée une fois, autocomplétion faite localement
+    const GARES_URL = 'https://ressources.data.sncf.com/api/explore/v2.1/catalog/datasets/gares-de-voyageurs/exports/json'
+        + '?select=nom,libellecourt,segment_drg,position_geographique,codeinsee&limit=-1';
+    const normalize = (str) => (str || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+    let gares = [];
+    let garesLoaded = false;
+    fetch(GARES_URL)
+        .then((response) => {
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return response.json();
+        })
+        .then((data) => {
+            gares = data
+                .filter((gare) => gare.position_geographique)
+                .map((gare) => ({ ...gare, key: normalize(gare.nom) }));
+            garesLoaded = true;
+        })
+        .catch((err) => console.warn('Liste des gares indisponible', err));
+
+    const searchForm = document.getElementById('search');
+    const searchResults = document.getElementById('search-results');
+    let suggestions = [];
+
+    function showSearchItems(items) {
+        searchResults.replaceChildren(...items);
+        searchResults.hidden = items.length === 0;
+    }
+
+    function selectGare(gare) {
+        const { lon: placeLng, lat: placeLat } = gare.position_geographique;
+        const placeZoom = 16;
+        // Le point rouge et l'URL (x, y, z) suivent la gare choisie
+        map.getSource('center-point').setData({
+            type: 'FeatureCollection',
+            features: [{ type: 'Feature', geometry: { type: 'Point', coordinates: [placeLng, placeLat] } }]
+        });
+        history.replaceState(null, '', `?z=${placeZoom}&x=${placeLng}&y=${placeLat}`);
+        map.flyTo({ center: [placeLng, placeLat], zoom: placeZoom });
+        searchForm.q.value = gare.nom;
+        searchResults.hidden = true;
+    }
+
+    // Suggestions à la frappe : préfixe du nom en premier, puis sous-chaîne ou code court
+    searchForm.q.addEventListener('input', () => {
+        const q = normalize(searchForm.q.value.trim());
+        if (!q) {
+            suggestions = [];
+            searchResults.hidden = true;
+            return;
+        }
+        if (!garesLoaded) {
+            showSearchItems([Object.assign(document.createElement('li'), { textContent: 'Chargement des gares…' })]);
+            return;
+        }
+        suggestions = gares
+            .filter((gare) => gare.key.includes(q) || normalize(gare.libellecourt).startsWith(q))
+            .sort((a, b) => Number(!a.key.startsWith(q)) - Number(!b.key.startsWith(q)))
+            .slice(0, 8);
+        const items = suggestions.map((gare) => {
+            const li = document.createElement('li');
+            li.textContent = `${gare.nom} (${gare.libellecourt})`;
+            li.addEventListener('click', () => selectGare(gare));
+            return li;
+        });
+        if (!items.length) items.push(Object.assign(document.createElement('li'), { textContent: 'Aucune gare trouvée' }));
+        showSearchItems(items);
+    });
+
+    // Entrée : sélectionne la première suggestion
+    searchForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        if (suggestions.length) selectGare(suggestions[0]);
     });
 </script>
 </body>
