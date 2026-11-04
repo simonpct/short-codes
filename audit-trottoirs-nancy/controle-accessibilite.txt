@@ -1,0 +1,135 @@
+=== CONTRÔLES ===
+  OK    MarkInfo /Marked = true (document balisé)
+  OK    Arbre de structure présent
+  OK    Langue du document : fr-FR
+  OK    DisplayDocTitle = true (titre affiché)
+  OK    Titre XMP (dc:title) : Cartographie OSM à Nancy : couverture à 100 % + maintenance
+  OK    Signets présents
+  OK    Polices intégrées avec table ToUnicode (texte extractible et vocalisable)
+  OK    Aucun glyphe associé à un caractère Unicode privé (sinon lu comme vide)
+  OK    Tout le texte est balisé ou marqué décoratif
+  OK    Tout le contenu graphique (fonds, traits, images) est balisé ou décoratif (opérations hors balise : 0)
+  OK    Images avec texte alternatif : 2/2
+  OK    Un seul titre de niveau 1 (trouvés : 1)
+  OK    Niveaux de titres sans saut : [1, 2, 2, 2, 2, 2]
+  OK    Tableaux avec cellules d'en-tête : 2/2
+  ATTENTION Identifiant PDF/UA (pdfuaid:part) dans le XMP
+
+=== ORDRE DE LECTURE (balises) — 117 éléments ===
+[Paragraphe] AUDIT OPENSTREETMAP · ACCESSIBILITÉ PIÉTONNE
+[Titre 1] Cartographie OSM à NancyCouverture à 100 % + Maintenance
+[Paragraphe] OpenStreetMap est la plus grande carte collaborative ouverte au monde. Elle est à la cartographie ce queWikipédia est aux encyclopédies. Avec un group
+[Paragraphe] Novembre 2026
+[Liste] 
+  [Élément de liste] 81 %de la voirie bordée d'un trottoirdessiné
+  [Élément de liste] 19 %de la voirie sans trottoirdessiné
+  [Élément de liste] 42 %des 822 feux piétons sansinformation sonore
+  [Élément de liste] 48 %des 2654 passages piétonsavec bordure renseignée
+[Titre 2] Couverture des trottoirs dans OpenStreetMap
+[Image] Carte de la commune de Nancy montrant la couverture des trottoirs dans OpenStreetMap. En vert, les rues bordées d'un trottoir dessiné : 81 % de la voi
+[Titre 2] Qui maintient les trottoirs ?
+  [Texte] 81,5 %
+  [Texte] Simon PICOT
+  [Texte] (simonpct)
+  [Texte] auteur des dernières mises à jour des trottoirs
+[Paragraphe] 95 % mis à jour en 2026
+  [Texte] 2. Yuni Tsukiyama 2,6 % 3. EUMapper 2,5 %
+  [Texte] 52 autres contributeurs 13,4 %
+[Titre 2] Zones prioritaires : patrimoine, flux et services
+[Tableau] 
+  [Ligne] 
+    [En-tête (Column)] N°
+    [En-tête (Column)] ZONE
+    [En-tête (Column)] TROTTOIRS DESSINÉS
+    [En-tête (Column)] TROTTOIRS SANS INFO BORDURES / PODOTACTILE
+  [Ligne] 
+    [Cellule] 1
+    [En-tête (Row)] Place Stanislas / Carrière (UNESCO)
+    [Cellule] 85 %
+    [Cellule] 26 %
+  [Ligne] 
+    [Cellule] 2
+    [En-tête (Row)] Vieille-Ville / Porte de la Craffe
+    [Cellule] 84 %
+    [Cellule] 40 %
+  [Ligne] 
+    [Cellule] 3
+    [En-tête (Row)] Gare Nancy-Ville / Place Thiers
+    [Cellule] 94 %
+    [Cellule] 17 %
+  [Ligne] 
+    [Cellule] 4
+    [En-tête (Row)] Hypercentre commercial (St-Jean / Charles III)
+    [Cellule] 99 %
+    [Cellule] 6 %
+  [Ligne] 
+    [Cellule] 5
+    [En-tête (Row)] Quartier Art nouveau (Musée Éc. de Nancy)
+    [Cellule] 99 %
+    [Cellule] 20 %
+  [Ligne] 
+    [Cellule] 6
+    [En-tête (Row)] CHRU Hôpital Central / Faculté
+    [Cellule] 83 %
+    [Cellule] 26 %
+  [Ligne] 
+    [Cellule] 7
+    [En-tête (Row)] Rives de Meurthe / Jardin d'Eau
+    [Cellule] 54 %
+    [Cellule] 50 %
+[Titre 2] Passages piétons, bordures et feux sonores
+[Tableau] 
+  [Ligne] 
+    [En-tête (Column)] INDICATEUR
+    [En-tête (Column)] NOMBRE
+    [En-tête (Column)] PART
+  [Ligne] 
+    [En-tête (Row)] Passages piétons
+  [Ligne] 
+    [En-tête (Row)] Type de passage indiqué
+    [Cellule] 2504
+    [Cellule] 94 %
+  [Ligne] 
+    [En-tête (Row)] Bande podotactile indiquée
+    [Cellule] 2243
+    [Cellule] 85 %
+  [Ligne] 
+    [En-tête (Row)] Type de bordure indiqué
+    [Cellule] 1264
+    [Cellule] 48 %
+  [Ligne] 
+    [En-tête (Row)] Îlot refuge indiqué
+    [Cellule] 732
+    [Cellule] 28 %
+  [Ligne] 
+    [En-tête (Row)] Bordures cartographiées
+  [Ligne] 
+    [En-tête (Row)] Abaissées ou à niveau
+    [Cellule] 774
+    [Cellule] 94 %
+  [Ligne] 
+    [En-tête (Row)] Traversées avec bordure aux extrémités
+    [Cellule] 745 sur 4200
+    [Cellule] 18 %
+  [Ligne] 
+    [En-tête (Row)] Feux piétons
+  [Ligne] 
+    [En-tête (Row)] Présence du son indiquée
+    [Cellule] 477
+    [Cellule] 58 %
+  [Ligne] 
+    [En-tête (Row)] Feux sonores confirmés
+    [Cellule] 70
+    [Cellule] 9 %
+  [Ligne] 
+    [En-tête (Row)] Bouton d'appel indiqué
+    [Cellule] 540
+    [Cellule] 66 %
+[Image] Zoom sur le centre-ville de Nancy montrant les passages piétons et les feux. Les passages complets, avec type, bande podotactile et bordure indiqués, 
+[Titre 2] Constats et priorités d'action
+[Liste] 
+  [Élément de liste] TROTTOIRS19 % de la voirie (35 km) n'a pas encore de trottoir cartographié, surtout en périphérie. Les compléter enpriorité dans les secteurs les moin
+  [Élément de liste] FEUX SONORES345 feux piétons sur 822 n'indiquent pas s'ils sont sonores, et seuls 70 sont confirmés sonores. Un relevé deterrain (son, bouton d'appel)
+  [Élément de liste] BORDURES45 % des trottoirs reliés à un passage piéton n'ont pas d'information complète sur la bordure ou la bandepodotactile. C'est l'information clé 
+  [Élément de liste] MAINTENANCELa donnée est vivante : 95 % des trottoirs ont été mis à jour en 2026. Pérenniser cette maintenance (travaux,nouveaux aménagements) par un 
+  [Texte] Données OpenStreetMap

@@ -177,7 +177,7 @@ groups = [("Passages piétons", [("Type de passage indiqué", typed, typed / ncr
                                 ("Type de bordure indiqué", kerbnode, kerbnode / ncr, AMBER),
                                 ("Îlot refuge indiqué", ncr - c_(cs["island"], "absent"), (ncr - c_(cs["island"], "absent")) / ncr, RED)]),
           ("Bordures cartographiées", [("Abaissées ou à niveau", low, low / ks["n"], GREEN),
-                                       ("Traversées avec bordure aux extrémités", f"{ks['xway_ends_kerb']}/{ks['xway_ends']}", ks["xway_ends_kerb"] / ks["xway_ends"], RED)]),
+                                       ("Traversées avec bordure aux extrémités", f"{ks['xway_ends_kerb']} sur {ks['xway_ends']}", ks["xway_ends_kerb"] / ks["xway_ends"], RED)]),
           ("Feux piétons", [("Présence du son indiquée", snd, snd / nps, AMBER),
                             ("Feux sonores confirmés", ss["sound"].get("yes", 0), ss["sound"].get("yes", 0) / nps, RED),
                             ("Bouton d'appel indiqué", nps - ss["button"].get("absent", 0), (nps - ss["button"].get("absent", 0)) / nps, AMBER)])]
@@ -185,7 +185,7 @@ trows = ""
 for g, rows in groups:
     trows += f'<tbody><tr class="grp"><th scope="rowgroup" colspan="3">{E(g)}</th></tr>'
     for lab, v, f, col in rows:
-        trows += f'<tr><th scope="row">{E(lab)}</th><td class="r">{v}</td><td>{bar(f, col, w='16mm')}</td></tr>'
+        trows += f'<tr><th scope="row">{E(lab)}</th><td class="r">{v}</td><td>{bar(f, col, w='13mm')}</td></tr>'
     trows += "</tbody>"
 
 recs = [("Trottoirs", RED, f"{NOSEP} % de la voirie ({(TOT - LB['sep']) / 1000:.0f} km) n'a pas encore de trottoir cartographié, surtout en périphérie. "
@@ -219,7 +219,8 @@ html = f'''<!doctype html>
 :root {{ --navy:{NAVY}; --ink:{INK}; --muted:{MUTED}; --line:{LINE}; --acc:{ACC}; }}
 html, body {{ background: #fff; }}
 body {{ font-family: Inter, sans-serif; color: var(--ink); font-size: 7.8pt; line-height: 1.36;
-        -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
+        -webkit-print-color-adjust: exact; print-color-adjust: exact;
+        font-feature-settings: "calt" 0, "case" 0; font-variant-ligatures: no-contextual; }}
 .page {{ width: 210mm; height: 297mm; position: relative; overflow: hidden; page-break-after: always; break-after: page; }}
 .page:last-child {{ page-break-after: auto; break-after: auto; }}
 .content {{ padding: 0 14mm; }}
@@ -271,7 +272,7 @@ th, td {{ padding: 1.45mm 2.1mm; border-bottom: .4pt solid var(--line); vertical
 tbody tr:last-child th, tbody tr:last-child td, tbody:last-child tr:last-child > * {{ border-bottom: 0; }}
 table.t3 tbody:not(:last-child) tr:last-child > * {{ border-bottom: .4pt solid var(--line); }}
 thead th {{ background: #f1f5f9; color: var(--muted); font-weight: 600; font-size: 6.2pt; text-transform: uppercase; padding: 1.6mm 2.1mm; }}
-thead th.r, td.r {{ text-align: right; }}
+thead th.r, td.r {{ text-align: right; white-space: nowrap; }}
 tbody th[scope=row] {{ color: #334155; }}
 td.num {{ color: var(--acc); font-weight: 700; text-align: center; width: 9mm; }}
 tr.grp th {{ background: #f8fafc; font-weight: 600; color: var(--ink); }}
@@ -301,12 +302,12 @@ ul.recs li:last-child {{ border-bottom: 0; }}
 <article class="page">
   <header class="hero">
     <p class="eyebrow">AUDIT OPENSTREETMAP · ACCESSIBILITÉ PIÉTONNE</p>
-    <p class="date"><time datetime="{DATE[:7]}">Novembre {YEAR}</time></p>
     <h1>Cartographie OSM à Nancy <span class="l2">Couverture à 100 % + Maintenance</span></h1>
     <p class="intro"><strong>OpenStreetMap</strong> est la plus grande carte collaborative ouverte au monde. Elle est à la cartographie ce que
       Wikipédia est aux encyclopédies. Avec un groupe de contributeurs bénévoles, nous avons cartographié la plupart des cheminements
       piétons à Nancy. Ces données, directement exploitables par des applications de guidage telles que <strong>SonarVision</strong>,
       ont une valeur inestimable pour les utilisateurs déficients visuels.</p>
+    <p class="date"><time datetime="{DATE[:7]}">Novembre {YEAR}</time></p>
   </header>
   <ul class="kpis" aria-label="Chiffres clés">{kpi_html}</ul>
   <div class="content">
@@ -321,7 +322,7 @@ ul.recs li:last-child {{ border-bottom: 0; }}
       {contrib_html}
     </section>
   </div>
-  <footer class="foot"><span class="src">Données OpenStreetMap</span><span class="pn" aria-hidden="true">01 / 02</span></footer>
+  <footer class="foot" aria-hidden="true"><span class="src">Données OpenStreetMap</span><span class="pn">01 / 02</span></footer>
 </article>
 
 <article class="page p2">
@@ -332,7 +333,7 @@ ul.recs li:last-child {{ border-bottom: 0; }}
       <h2 id="s3">Zones prioritaires : patrimoine, flux et services</h2>
       <table class="zt"><colgroup><col style="width:9mm"><col style="width:66mm"><col style="width:46mm"><col></colgroup>
         <caption class="sr">Part des trottoirs dessinés et des trottoirs sans information sur les bordures ou la bande podotactile, pour les sept zones prioritaires</caption>
-        <thead><tr><th scope="col"><span class="sr">Numéro</span></th><th scope="col">Zone</th><th scope="col" class="r">Trottoirs dessinés</th>
+        <thead><tr><th scope="col">N°</th><th scope="col">Zone</th><th scope="col" class="r">Trottoirs dessinés</th>
           <th scope="col" class="r">Trottoirs sans info bordures / podotactile</th></tr></thead>
         <tbody>{zrows}</tbody>
       </table>
@@ -341,7 +342,7 @@ ul.recs li:last-child {{ border-bottom: 0; }}
       <p class="eyebrow-s" aria-hidden="true">04 · Traversées</p>
       <h2 id="s4">Passages piétons, bordures et feux sonores</h2>
       <div class="duo">
-        <table class="t3"><colgroup><col style="width:57mm"><col style="width:16mm"><col></colgroup>
+        <table class="t3"><colgroup><col style="width:54mm"><col style="width:21mm"><col></colgroup>
           <caption class="sr">Complétude des informations sur les passages piétons, les bordures et les feux piétons</caption>
           <thead><tr><th scope="col">Indicateur</th><th scope="col" class="r">Nombre</th><th scope="col" class="r">Part</th></tr></thead>
           {trows}
