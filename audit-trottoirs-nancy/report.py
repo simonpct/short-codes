@@ -16,7 +16,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.lib.fonts import addMapping
 
 R = pickle.load(open(sys.argv[1], "rb")); OUTDIR = sys.argv[2]; PDF = sys.argv[3]
-DATE = sys.argv[4]; FONTDIR = sys.argv[5]; CT = pickle.load(open(sys.argv[6], "rb"))
+DATE = sys.argv[4]; FONTDIR = sys.argv[5]; CT = pickle.load(open(sys.argv[6], "rb")); ZK = pickle.load(open(sys.argv[7], "rb"))
 # fusion : « renseigné sur la chaussée seulement » = trottoir non dessiné
 R["pieces"] = [(g, "none" if c == "tag" else c) for g, c in R["pieces"]]
 R["length_by"]["none"] += R["length_by"].pop("tag", 0)
@@ -55,7 +55,7 @@ def legend(ax, handles, title=None, fs=6):
     if title: lg.get_title().set_fontweight("semibold")
 
 xs = [p[0] for p in R["city"]]; ys = [p[1] for p in R["city"]]
-MAP_AR = 0.72
+MAP_AR = 0.76
 X0, X1 = min(xs) - 60, max(xs) + 60
 cyy = (min(ys) + max(ys)) / 2; hh = (X1 - X0) * MAP_AR
 Y0, Y1 = cyy - hh / 2, cyy + hh / 2
@@ -93,7 +93,7 @@ def cr_cat(t):
         return "sig_snd" if "traffic_signals:sound" in t else "sig"
     return "full" if (t.get("crossing") not in (None, "yes") and "tactile_paving" in t and "kerb" in t) else "part"
 CC = {"sig_snd": (ACC, "Feu piéton — son renseigné", 7), "sig": (RED, "Feu piéton — son non renseigné", 7),
-      "full": (GREEN, "Passage complet (type, podotactile, bordure)", 3.2), "part": (AMBER, "Passage incomplet", 3.2)}
+      "full": (GREEN, "Passage complet (type, bande d'éveil, bordure)", 3.2), "part": (AMBER, "Passage incomplet", 3.2)}
 for k in ["part", "full", "sig", "sig_snd"]:
     pts = [c[0] for c in R["crossings"] if cr_cat(c[1]) == k]
     ax.scatter([p[0] for p in pts], [p[1] for p in pts], s=CC[k][2], c=CC[k][0], lw=0.25 if k.startswith("sig") else 0,
@@ -108,7 +108,7 @@ for i, z in enumerate(R["zones"], 1):
     ax.text(lx, ly - 3, str(i), ha="center", va="center", color="white", fontsize=4.6, weight="bold", zorder=8)
 ax.set_xlim(cx - W / 2, cx + W / 2); ax.set_ylim(cy - H / 2 - 150, cy + H / 2 - 150)
 h = [Line2D([], [], marker="o", ls="", mfc=CC[k][0], mec="none", ms=4, label=CC[k][1]) for k in CC]
-h.append(Line2D([], [], marker="s", ls="", mfc="#8b5cf6", mec="none", ms=3, label="Bordure (barrier=kerb)"))
+h.append(Line2D([], [], marker="s", ls="", mfc="#8b5cf6", mec="none", ms=3, label="Bordure cartographiée"))
 h.append(Line2D([], [], color="#9fdcc3", lw=1.6, label="Trottoir dessiné"))
 legend(ax, h, fs=5)
 scalebar(ax, cx + W / 2 - 560, cy - H / 2 - 150 + 110, 400)
@@ -126,7 +126,6 @@ def st(**k):
 BODY = st(); SMALL = st(fontSize=6.4, leading=8.4, textColor=colors.HexColor(MUTED))
 EYEBROW = st(fontName="InS", fontSize=6.6, leading=8, textColor=colors.HexColor(ACC))
 H2 = st(fontName="ID", fontSize=13, leading=16, spaceAfter=3)
-def code(s): return f'<font name="InM" color="#4338ca">{s}</font>'
 
 def section(num, eyebrow, title):
     return [Paragraph(f"{num}&nbsp;&nbsp;·&nbsp;&nbsp;{eyebrow.upper()}", EYEBROW), Paragraph(title, H2)]
@@ -154,13 +153,15 @@ class Bar(Flowable):
 
 def tstyle(extra=()):
     return TableStyle([
-        ("FONT", (0, 0), (-1, -1), "In", 7.2), ("TEXTCOLOR", (0, 0), (-1, -1), colors.HexColor(INK)),
+        ("FONT", (0, 0), (-1, -1), "In", 7.3), ("TEXTCOLOR", (0, 0), (-1, -1), colors.HexColor(INK)),
         ("FONT", (0, 0), (-1, 0), "InS", 6.2), ("TEXTCOLOR", (0, 0), (-1, 0), colors.HexColor(MUTED)),
-        ("LINEBELOW", (0, 0), (-1, 0), 0.8, colors.HexColor(INK)),
-        ("LINEBELOW", (0, 1), (-1, -2), 0.4, colors.HexColor(LINE)),
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#f1f5f9")),
+        ("LINEBELOW", (0, 0), (-1, -2), 0.4, colors.HexColor(LINE)),
+        ("BOX", (0, 0), (-1, -1), 0.6, colors.HexColor(LINE)), ("ROUNDEDCORNERS", [8, 8, 8, 8]),
         ("ALIGN", (1, 0), (-1, -1), "RIGHT"), ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("TOPPADDING", (0, 0), (-1, -1), 2.4), ("BOTTOMPADDING", (0, 0), (-1, -1), 2.4),
-        ("LEFTPADDING", (0, 0), (-1, -1), 3), ("RIGHTPADDING", (0, 0), (-1, -1), 3), *extra])
+        ("TOPPADDING", (0, 0), (-1, -1), 4.4), ("BOTTOMPADDING", (0, 0), (-1, -1), 4.4),
+        ("TOPPADDING", (0, 0), (-1, 0), 4), ("BOTTOMPADDING", (0, 0), (-1, 0), 4),
+        ("LEFTPADDING", (0, 0), (-1, -1), 6), ("RIGHTPADDING", (0, 0), (-1, -1), 6), *extra])
 
 # ---------------- page decorations ----------------
 PW, PH = A4; M = 14 * mm; FW = PW - 2 * M
@@ -175,6 +176,7 @@ def kpi_card(c, x, y, w, h, val, lab, color):
     for i, line in enumerate(lab.split("\n")): c.drawString(x + 4 * mm, y + 6.2 * mm - i * 8.2, line)
 
 def footer(c, doc):
+    c.setFont("In", 5.5); c.setFillColor(colors.HexColor(GREY)); c.drawString(M, 8 * mm, "Données OpenStreetMap")
     c.setFont("InS", 6.5); c.setFillColor(colors.HexColor(INK)); c.drawRightString(PW - M, 8 * mm, f"{doc.page:02d} / 02")
 
 def page1(c, doc):
@@ -228,94 +230,100 @@ s = [NextPageTemplate("p2")]
 # ===== PAGE 1 =====
 s += section("01", "Trottoirs", "Couverture des trottoirs dans OpenStreetMap")
 s.append(card(f"{OUTDIR}/map_sidewalks.png", FW, FW * MAP_AR))
-s.append(Spacer(1, 7))
+s.append(Spacer(1, 8))
 
 s += section("02", "Contributeurs", "Qui maintient les trottoirs ?")
+NAMES = {"simonpct": "Simon PICOT"}
+fr = lambda x: f"{x:.1f} %".replace(".", ",")
 class Contrib(Flowable):
-    def wrap(self, aw, ah): return FW, 27 * mm
+    H = 22 * mm
+    def wrap(self, aw, ah): return FW, self.H
     def draw(self):
-        c = self.canv; gap = 3.5 * mm; w = (FW - 3 * gap) / 4; h = 27 * mm
-        top3 = CT["top"][:3]; L = CT["len"]; N = CT["n"]
-        for i, (u, n, l) in enumerate(top3):
-            x = i * (w + gap)
-            c.setFillColor(colors.white); c.setStrokeColor(colors.HexColor(LINE)); c.setLineWidth(0.6)
-            c.roundRect(x, 0, w, h, 3 * mm, stroke=1, fill=1)
-            c.setFillColor(colors.HexColor("#eef2ff")); c.circle(x + 7 * mm, h - 7 * mm, 3.2 * mm, stroke=0, fill=1)
-            c.setFillColor(colors.HexColor(ACC)); c.setFont("InB", 8); c.drawCentredString(x + 7 * mm, h - 8.1 * mm, str(i + 1))
-            c.setFillColor(colors.HexColor(INK)); c.setFont("InS", 8.2); c.drawString(x + 12.5 * mm, h - 8.2 * mm, u)
-            c.setFont("IDB", 17); c.drawString(x + 4 * mm, h - 17 * mm, f"{100 * l / L:.1f} %".replace(".", ","))
-            bw = w - 8 * mm
-            c.setFillColor(colors.HexColor("#eef2f7")); c.roundRect(x + 4 * mm, 7 * mm, bw, 1.6 * mm, 0.8 * mm, stroke=0, fill=1)
-            c.setFillColor(colors.HexColor(ACC)); c.roundRect(x + 4 * mm, 7 * mm, max(1.6 * mm, bw * l / L), 1.6 * mm, 0.8 * mm, stroke=0, fill=1)
-            c.setFillColor(colors.HexColor(MUTED)); c.setFont("In", 6.4)
-            c.drawString(x + 4 * mm, 3 * mm, f"{n} tronçons · {l / 1000:.0f} km de trottoirs")
-        x = 3 * (w + gap); tl = sum(t[2] for t in top3); y26 = CT["years"].get(DATE[:4], 0)
-        c.setFillColor(colors.HexColor(NAVY)); c.roundRect(x, 0, w, h, 3 * mm, stroke=0, fill=1)
-        c.setFillColor(colors.HexColor("#a5b4fc")); c.setFont("InS", 6.4); c.drawString(x + 4 * mm, h - 7 * mm, "TOP 3 CUMULÉ")
-        c.setFillColor(colors.white); c.setFont("IDB", 17); c.drawString(x + 4 * mm, h - 15.5 * mm, f"{100 * tl / L:.1f} %".replace(".", ","))
-        c.setFillColor(colors.HexColor("#cbd5e1")); c.setFont("In", 6.4)
-        c.drawString(x + 4 * mm, 7.2 * mm, f"{CT['users']} contributeurs au total")
-        c.drawString(x + 4 * mm, 3 * mm, f"{100 * y26 / N:.0f} % modifiés en {DATE[:4]}")
+        c = self.canv; h = self.H; L = CT["len"]; top = CT["top"]
+        c.setFillColor(colors.white); c.setStrokeColor(colors.HexColor(LINE)); c.setLineWidth(0.6)
+        c.roundRect(0, 0, FW, h, 3 * mm, stroke=1, fill=1)
+        u, n, l = top[0]
+        c.setFillColor(colors.HexColor(ACC)); c.setFont("IDB", 20); c.drawString(5 * mm, h - 10.5 * mm, fr(100 * l / L))
+        vw = pdfmetrics.stringWidth(fr(100 * l / L), "IDB", 20)
+        c.setFillColor(colors.HexColor(INK)); c.setFont("InS", 9)
+        c.drawString(8 * mm + vw, h - 7.2 * mm, f"{NAMES.get(u, u)}")
+        nw = pdfmetrics.stringWidth(NAMES.get(u, u), "InS", 9)
+        c.setFillColor(colors.HexColor(MUTED)); c.setFont("In", 8); c.drawString(9.5 * mm + vw + nw, h - 7.2 * mm, f"({u})")
+        c.setFont("In", 6.8); c.drawString(8 * mm + vw, h - 10.6 * mm, "auteur des dernières mises à jour des trottoirs")
+        # barre empilée
+        x0, bw, y = 5 * mm, FW - 10 * mm, 5.2 * mm
+        c.setFillColor(colors.HexColor("#e2e8f0")); c.roundRect(x0, y, bw, 2.6 * mm, 1.3 * mm, stroke=0, fill=1)
+        c.setFillColor(colors.HexColor(ACC)); c.roundRect(x0, y, bw * l / L, 2.6 * mm, 1.3 * mm, stroke=0, fill=1)
+        x = x0 + bw * l / L
+        for (u2, n2, l2), col in zip(top[1:3], ["#a5b4fc", "#c7d2fe"]):
+            c.setFillColor(colors.HexColor(col)); c.rect(x + 0.4, y, bw * l2 / L - 0.4, 2.6 * mm, stroke=0, fill=1); x += bw * l2 / L
+        rest = 100 - 100 * sum(t[2] for t in top[:3]) / L
+        c.setFillColor(colors.HexColor(MUTED)); c.setFont("In", 6.4)
+        c.drawString(x0, 1.8 * mm, f"2. {top[1][0]}  {fr(100 * top[1][2] / L)}     3. {top[2][0]}  {fr(100 * top[2][2] / L)}")
+        c.drawRightString(x0 + bw, 1.8 * mm, f"{CT['users'] - 3} autres contributeurs  {fr(rest)}")
+        # pastille droite
+        y26 = CT["years"].get(DATE[:4], 0); t = f"{100 * y26 / CT['n']:.0f} % mis à jour en {DATE[:4]}"
+        tw = pdfmetrics.stringWidth(t, "InS", 6.8) + 7 * mm
+        c.setFillColor(colors.HexColor("#ecfdf5")); c.roundRect(FW - 5 * mm - tw, h - 9.5 * mm, tw, 5.4 * mm, 2.7 * mm, stroke=0, fill=1)
+        c.setFillColor(colors.HexColor("#047857")); c.setFont("InS", 6.8); c.drawCentredString(FW - 5 * mm - tw / 2, h - 7.6 * mm, t)
 s.append(Contrib())
-s.append(Spacer(1, 3))
-s.append(Paragraph(f"Part du linéaire de trottoirs ({CT['len'] / 1000:.0f} km, {CT['n']} tronçons {code('footway=sidewalk')}) selon l'auteur de la "
-                   "<b>dernière modification</b> de chaque tronçon (et non de sa création).", SMALL))
 s.append(PageBreak())
 
 # ===== PAGE 2 =====
 s += section("03", "Micromapping", "Zones prioritaires : patrimoine, flux et services")
-rows = [["#", "ZONE", "TROTTOIR DESSINÉ", "PASSAGES", "PODOTACT.", "FEUX · SON RENSEIGNÉ", "BORDURES", "AREA:HW"]]
+rows = [["", "ZONE", "TROTTOIRS DESSINÉS", "TROTTOIRS SANS INFO BORDURES / DEV"]]
 for i, z in enumerate(R["zones"], 1):
-    L = z["len"]; t = sum(L.values())
-    rows.append([str(i), z["name"], Bar(L["sep"] / t, GREEN), str(z["crossings"]), pct(z["cr_tactile"], z["crossings"]),
-                 Bar(z["sig_sound"] / z["sig"] if z["sig"] else 0, ACC, 30 * mm, f"{z['sig_sound']}/{z['sig']}"),
-                 str(z["kerbs"]), str(z["area_hw"])])
-s.append(Table(rows, colWidths=[6 * mm, 60 * mm, 28 * mm, 15 * mm, 15 * mm, 30 * mm, 14 * mm, 14 * mm],
-               style=tstyle([("ALIGN", (0, 0), (1, -1), "LEFT"), ("FONT", (0, 1), (0, -1), "InB", 7.2),
-                             ("TEXTCOLOR", (0, 1), (0, -1), colors.HexColor(ACC))])))
-s.append(Spacer(1, 2))
-s.append(Paragraph("Cercles de 280 à 380 m autour de lieux emblématiques (UNESCO, pôle gare, hypercentre, Art nouveau, CHRU, port) — numérotés sur les deux cartes.", SMALL))
-s.append(Spacer(1, 12))
+    L = z["len"]; t = sum(L.values()); a, n = ZK["zones"][z["name"]]
+    rows.append([str(i), z["name"], Bar(L["sep"] / t, GREEN, 44 * mm), Bar(a / n if n else 0, RED, 44 * mm)])
+s.append(Table(rows, colWidths=[9 * mm, 77 * mm, 48 * mm, 48 * mm],
+               style=tstyle([("ALIGN", (0, 0), (1, -1), "LEFT"), ("ALIGN", (0, 0), (0, -1), "CENTER"),
+                             ("FONT", (0, 1), (0, -1), "InB", 7.4), ("TEXTCOLOR", (0, 1), (0, -1), colors.HexColor(ACC))])))
+s.append(Spacer(1, 16))
 
 s += section("04", "Traversées", "Passages piétons, bordures et feux sonores")
 def c_(cnt, k): return cnt.get(k, 0)
-def grp(t): return [Paragraph(f'<font name="InS">{t}</font>', st(fontSize=7.2)), "", ""]
-rows = [["INDICATEUR", "NOMBRE", "TAUX"],
-        grp(f"Passages piétons · {ncr} nœuds"),
-        ["Type précisé (crossing=*)", typed, Bar(typed / ncr, GREEN)],
-        ["Bande podotactile renseignée", tact, Bar(tact / ncr, GREEN)],
-        ["Bordure renseignée (kerb=*)", kerbnode, Bar(kerbnode / ncr, AMBER)],
-        ["Îlot refuge renseigné", ncr - c_(cs["island"], "absent"), Bar((ncr - c_(cs["island"], "absent")) / ncr, RED)],
-        grp(f"Bordures · {ks['n']} nœuds barrier=kerb"),
-        ["Abaissée ou à niveau", c_(ks["kerb"], "lowered") + c_(ks["kerb"], "flush"), Bar((c_(ks["kerb"], "lowered") + c_(ks["kerb"], "flush")) / ks["n"], GREEN)],
-        ["Hauteur mesurée (kerb:height)", ks["height"], Bar(ks["height"] / ks["n"], RED)],
-        ["Traversées : extrémités avec bordure", f"{ks['xway_ends_kerb']}/{ks['xway_ends']}", Bar(ks["xway_ends_kerb"] / ks["xway_ends"], RED)],
-        grp(f"Feux piétons · {nps} passages à feux"),
-        ["Son renseigné (traffic_signals:sound)", snd, Bar(snd / nps, AMBER)],
-        ["  dont déclarés sonores (=yes)", ss["sound"].get("yes", 0), Bar(ss["sound"].get("yes", 0) / nps, RED)],
-        ["Vibreur renseigné", nps - ss["vibration"].get("absent", 0), Bar((nps - ss["vibration"].get("absent", 0)) / nps, AMBER)],
-        ["Bouton d'appel renseigné", nps - ss["button"].get("absent", 0), Bar((nps - ss["button"].get("absent", 0)) / nps, AMBER)]]
+def grp(t): return [Paragraph(f'<font name="InS">{t}</font>', st(fontSize=7.3)), "", ""]
+low = c_(ks["kerb"], "lowered") + c_(ks["kerb"], "flush")
+rows = [["INDICATEUR", "NOMBRE", "PART"],
+        grp(f"Passages piétons ({ncr})"),
+        ["Type de passage indiqué", typed, Bar(typed / ncr, GREEN)],
+        ["Bande d'éveil (DEV) indiquée", tact, Bar(tact / ncr, GREEN)],
+        ["Type de bordure indiqué", kerbnode, Bar(kerbnode / ncr, AMBER)],
+        ["Îlot refuge indiqué", ncr - c_(cs["island"], "absent"), Bar((ncr - c_(cs["island"], "absent")) / ncr, RED)],
+        grp(f"Bordures cartographiées ({ks['n']})"),
+        ["Abaissées ou à niveau", low, Bar(low / ks["n"], GREEN)],
+        ["Hauteur mesurée", ks["height"], Bar(ks["height"] / ks["n"], RED)],
+        ["Traversées avec bordure aux extrémités", f"{ks['xway_ends_kerb']}/{ks['xway_ends']}", Bar(ks["xway_ends_kerb"] / ks["xway_ends"], RED)],
+        grp(f"Feux piétons ({nps})"),
+        ["Présence du son indiquée", snd, Bar(snd / nps, AMBER)],
+        ["Feux sonores confirmés", ss["sound"].get("yes", 0), Bar(ss["sound"].get("yes", 0) / nps, RED)],
+        ["Vibreur indiqué", nps - ss["vibration"].get("absent", 0), Bar((nps - ss["vibration"].get("absent", 0)) / nps, AMBER)],
+        ["Bouton d'appel indiqué", nps - ss["button"].get("absent", 0), Bar((nps - ss["button"].get("absent", 0)) / nps, AMBER)]]
 grp_rows = [i for i, r in enumerate(rows) if i and r[1] == ""]
 ts = tstyle([("SPAN", (0, i), (-1, i)) for i in grp_rows] +
-            [("BACKGROUND", (0, i), (-1, i), colors.HexColor(SOFT)) for i in grp_rows] +
+            [("BACKGROUND", (0, i), (-1, i), colors.HexColor("#f8fafc")) for i in grp_rows] +
             [("TEXTCOLOR", (0, 1), (0, -1), colors.HexColor("#334155"))])
 t3 = Table([r if isinstance(r[0], Paragraph) else [r[0], str(r[1]), r[2]] for r in rows],
-           colWidths=[52 * mm, 17 * mm, 26 * mm], style=ts)
-mw = FW - 95 * mm - 6 * mm
-s.append(Table([[t3, [card(f"{OUTDIR}/map_crossings.png", mw, mw), Spacer(1, 2),
-                      Paragraph("Zoom centre-ville : complétude des passages piétons et présence de l'information sonore sur les feux.", SMALL)]]],
-               colWidths=[95 * mm + 6 * mm, mw],
-               style=[("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0)]))
-s.append(Spacer(1, 12))
+           colWidths=[54 * mm, 17 * mm, 28 * mm], style=ts)
+mw = FW - 99 * mm - 5 * mm
+s.append(Table([[t3, card(f"{OUTDIR}/map_crossings.png", mw, mw)]], colWidths=[99 * mm + 5 * mm, mw],
+               style=[("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                      ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, -1), 0)]))
+s.append(Spacer(1, 16))
 
 s += section("05", "Recommandations", "Constats et priorités d'action")
 zsorted = sorted(R["zones"], key=lambda z: z["len"]["sep"] / max(1, sum(z["len"].values())))
 weak = ", ".join(z["name"].split(" (")[0].split(" / ")[0] for z in zsorted[:3])
+y26 = CT["years"].get(DATE[:4], 0)
 recs = [
-    ("Trottoirs", RED, f"{pct(LB['none'], TOT)} du linéaire de voirie ({LB['none'] / 1000:.0f} km) sans trottoir dessiné, surtout en périphérie. Les dessiner en priorité dans les zones les moins couvertes ({weak}), puis assurer leur maintenance."),
-    ("Feux sonores", ACC, f"{ss['sound'].get('absent', 0)} feux piétons sur {nps} sans {code('traffic_signals:sound')}, seuls {ss['sound'].get('yes', 0)} déclarés sonores. Relevé terrain (son, vibreur, bouton), en priorité au CHRU et aux Rives de Meurthe."),
-    ("Bordures", AMBER, f"Seules {pct(ks['xway_ends_kerb'], ks['xway_ends'])} des extrémités de traversées portent un nœud bordure, aucune hauteur mesurée. Ajouter {code('barrier=kerb')} + {code('kerb=*')} à chaque jonction."),
-    ("Micromapping", GREEN, f"Seul le pôle gare dispose de surfaces {code('area:highway')}. Étendre ce niveau de détail à Stanislas, la Vieille-Ville et l'hypercentre via des cartoparties (StreetComplete, GoMap!!, JOSM)."),
+    ("Trottoirs", RED, f"{pct(LB['none'], TOT)} de la voirie ({LB['none'] / 1000:.0f} km) n'a pas encore de trottoir cartographié, surtout en périphérie. "
+                       f"Les compléter en priorité dans les secteurs les moins couverts : {weak}."),
+    ("Feux sonores", ACC, f"{ss['sound'].get('absent', 0)} feux piétons sur {nps} n'indiquent pas s'ils sont sonores, et seuls {ss['sound'].get('yes', 0)} sont confirmés sonores. "
+                          "Un relevé de terrain (son, vibreur, bouton d'appel) est à mener, en priorité autour du CHRU et des Rives de Meurthe."),
+    ("Bordures", AMBER, f"{pct(*ZK['city'])} des trottoirs reliés à un passage piéton n'ont pas d'information complète sur la bordure ou la bande d'éveil (DEV). "
+                        "C'est l'information clé pour les personnes en fauteuil roulant et les personnes aveugles : à relever à chaque traversée."),
+    ("Maintenance", GREEN, f"La donnée est vivante : {pct(y26, CT['n'])} des trottoirs ont été mis à jour en {DATE[:4]}. "
+                           "Pérenniser cette maintenance (travaux, nouveaux aménagements) par un partenariat entre la collectivité et les contributeurs."),
 ]
 class Pill(Flowable):
     def __init__(self, text, color): super().__init__(); self.t = text; self.c = color
@@ -324,20 +332,10 @@ class Pill(Flowable):
         c = self.canv; c.setFillColor(colors.HexColor(self.c)); c.roundRect(0, 0, 25 * mm, 5.2 * mm, 2.6 * mm, stroke=0, fill=1)
         c.setFillColor(colors.white); c.setFont("InS", 6.8); c.drawCentredString(12.5 * mm, 1.75 * mm, self.t.upper())
 rrows = [[Pill(a, col), Paragraph(t, BODY)] for a, col, t in recs]
-s.append(Table(rrows, colWidths=[29 * mm, FW - 29 * mm],
-               style=[("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-                      ("TOPPADDING", (0, 0), (-1, -1), 3.2), ("BOTTOMPADDING", (0, 0), (-1, -1), 3.2),
-                      ("LINEBELOW", (0, 0), (-1, -2), 0.4, colors.HexColor(LINE))]))
-s.append(Spacer(1, 10))
-m1 = Paragraph("<b>Sources.</b> Données brutes OpenStreetMap téléchargées le " + DATE + " via l'API 0.6 (64 tuiles), "
-               f"filtrées sur le contour communal (relation 52399) : {R['n_sidewalk_ways']} trottoirs, {ncr} passages, "
-               f"{ks['n']} bordures, {nps} feux piétons. Chaussée : voies <i>primary</i> à <i>living_street</i>.", SMALL)
-m2 = Paragraph("<b>Limites.</b> Le critère de proximité (18 m) peut compter un trottoir dessiné d'un seul côté comme couvrant la voie. "
-               "Les zones de micromapping sont des cercles définis à dire d'expert. Un attribut renseigné n'est pas un attribut vérifié "
-               "sur le terrain : l'audit mesure la <i>complétude</i> de la donnée, pas l'accessibilité réelle.", SMALL)
-s.append(Table([[m1, m2]], colWidths=[FW / 2, FW / 2],
-               style=[("BACKGROUND", (0, 0), (-1, -1), colors.HexColor(SOFT)), ("ROUNDEDCORNERS", [8, 8, 8, 8]),
-                      ("BOX", (0, 0), (-1, -1), 0.6, colors.HexColor(LINE)), ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                      ("LEFTPADDING", (0, 0), (-1, -1), 4 * mm), ("RIGHTPADDING", (0, 0), (-1, -1), 4 * mm),
-                      ("TOPPADDING", (0, 0), (-1, -1), 3 * mm), ("BOTTOMPADDING", (0, 0), (-1, -1), 3 * mm)]))
+s.append(Table(rrows, colWidths=[31 * mm, FW - 31 * mm],
+               style=[("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 4 * mm), ("RIGHTPADDING", (0, 0), (-1, -1), 4 * mm),
+                      ("LEFTPADDING", (1, 0), (1, -1), 0),
+                      ("TOPPADDING", (0, 0), (-1, -1), 3.4 * mm), ("BOTTOMPADDING", (0, 0), (-1, -1), 3.4 * mm),
+                      ("LINEBELOW", (0, 0), (-1, -2), 0.4, colors.HexColor(LINE)),
+                      ("BOX", (0, 0), (-1, -1), 0.6, colors.HexColor(LINE)), ("ROUNDEDCORNERS", [8, 8, 8, 8])]))
 doc.build(s)
