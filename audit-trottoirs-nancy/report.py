@@ -55,7 +55,7 @@ def legend(ax, handles, title=None, fs=6):
     if title: lg.get_title().set_fontweight("semibold")
 
 xs = [p[0] for p in R["city"]]; ys = [p[1] for p in R["city"]]
-MAP_AR = 0.72
+MAP_AR = 0.735
 X0, X1 = min(xs) - 60, max(xs) + 60
 cyy = (min(ys) + max(ys)) / 2; hh = (X1 - X0) * MAP_AR
 Y0, Y1 = cyy - hh / 2, cyy + hh / 2
@@ -125,7 +125,7 @@ def st(**k):
     return ParagraphStyle("s", **d)
 BODY = st(); SMALL = st(fontSize=6.4, leading=8.4, textColor=colors.HexColor(MUTED))
 EYEBROW = st(fontName="InS", fontSize=6.6, leading=8, textColor=colors.HexColor(ACC))
-H2 = st(fontName="ID", fontSize=13, leading=16, spaceAfter=3)
+H2 = st(fontName="ID", fontSize=13, leading=16, spaceAfter=8)
 
 def section(num, eyebrow, title):
     return [Paragraph(f"{num}&nbsp;&nbsp;·&nbsp;&nbsp;{eyebrow.upper()}", EYEBROW), Paragraph(title, H2)]
@@ -165,7 +165,7 @@ def tstyle(extra=()):
 
 # ---------------- page decorations ----------------
 PW, PH = A4; M = 14 * mm; FW = PW - 2 * M
-HEAD1 = 84 * mm   # hauteur bandeau page 1
+HEAD1 = 76 * mm   # hauteur bandeau page 1
 
 def kpi_card(c, x, y, w, h, val, lab, color):
     c.setFillColor(colors.white); c.setStrokeColor(colors.HexColor(LINE)); c.setLineWidth(0.6)
@@ -185,19 +185,19 @@ def page1(c, doc):
     c.setStrokeColor(colors.HexColor("#16304d")); c.setLineWidth(0.6)
     for i in range(14): c.line(PW - 70 * mm + i * 6 * mm, PH, PW - 30 * mm + i * 6 * mm, PH - HEAD1 + 18 * mm)
     c.setFillColor(colors.HexColor("#a5b4fc")); c.setFont("InS", 7)
-    c.drawString(M, PH - 15 * mm, "AUDIT OPENSTREETMAP  ·  ACCESSIBILITÉ PIÉTONNE")
-    c.setFillColor(colors.white); c.setFont("IDB", 25); c.drawString(M, PH - 26 * mm, "Cartographie OSM à Nancy")
-    c.setFillColor(colors.HexColor("#c7d2fe")); c.drawString(M, PH - 35.5 * mm, "Couverture à 100 % + Maintenance")
+    c.drawString(M, PH - 12 * mm, "AUDIT OPENSTREETMAP  ·  ACCESSIBILITÉ PIÉTONNE")
+    c.setFillColor(colors.white); c.setFont("IDB", 25); c.drawString(M, PH - 22.5 * mm, "Cartographie OSM à Nancy")
+    c.setFillColor(colors.HexColor("#c7d2fe")); c.drawString(M, PH - 32 * mm, "Couverture à 100 % + Maintenance")
     intro = Paragraph(
         "<b>OpenStreetMap</b> est la plus grande carte collaborative ouverte au monde. Elle est à la cartographie ce que "
         "Wikipédia est aux encyclopédies. Avec un groupe de contributeurs bénévoles, nous avons cartographié la plupart "
         "des cheminements piétons à Nancy. Ces données, directement exploitables par des applications de guidage telles que "
         "<b>SonarVision</b>, ont une valeur inestimable pour les utilisateurs déficients visuels.",
         st(fontSize=8.6, leading=12.4, textColor=colors.HexColor("#cbd5e1")))
-    iw, ih = intro.wrap(FW * 0.86, 40 * mm); intro.drawOn(c, M, PH - 43 * mm - ih)
+    iw, ih = intro.wrap(FW * 0.86, 40 * mm); intro.drawOn(c, M, PH - 38.5 * mm - ih)
     txt = "Novembre 2026"; tw = pdfmetrics.stringWidth(txt, "InS", 7) + 8 * mm
-    c.setFillColor(colors.HexColor("#1e3a5f")); c.roundRect(PW - M - tw, PH - 17.5 * mm, tw, 6 * mm, 3 * mm, stroke=0, fill=1)
-    c.setFillColor(colors.white); c.setFont("InS", 7); c.drawCentredString(PW - M - tw / 2, PH - 15.3 * mm, txt)
+    c.setFillColor(colors.HexColor("#1e3a5f")); c.roundRect(PW - M - tw, PH - 14.5 * mm, tw, 6 * mm, 3 * mm, stroke=0, fill=1)
+    c.setFillColor(colors.white); c.setFont("InS", 7); c.drawCentredString(PW - M - tw / 2, PH - 12.3 * mm, txt)
     gap = 3.5 * mm; w = (FW - 3 * gap) / 4; h = 24 * mm; y = PH - HEAD1 - h / 2 + 2 * mm
     data = [(f"{round(100 * LB['sep'] / TOT)} %", "de la voirie bordée d'un\ntrottoir dessiné", GREEN),
             (f"{100 - round(100 * LB['sep'] / TOT)} %", "de la voirie sans\ntrottoir dessiné", RED),
@@ -230,7 +230,7 @@ s = [NextPageTemplate("p2")]
 # ===== PAGE 1 =====
 s += section("01", "Trottoirs", "Couverture des trottoirs dans OpenStreetMap")
 s.append(card(f"{OUTDIR}/map_sidewalks.png", FW, FW * MAP_AR))
-s.append(Spacer(1, 14))
+s.append(Spacer(1, 12))
 
 s += section("02", "Contributeurs", "Qui maintient les trottoirs ?")
 NAMES = {"simonpct": "Simon PICOT"}
@@ -271,29 +271,29 @@ s.append(PageBreak())
 
 # ===== PAGE 2 =====
 s += section("03", "Micromapping", "Zones prioritaires : patrimoine, flux et services")
-rows = [["", "ZONE", "TROTTOIRS DESSINÉS", "TROTTOIRS SANS INFO BORDURES / DEV"]]
+rows = [["", "ZONE", "TROTTOIRS DESSINÉS", "TROTTOIRS SANS INFO BORDURES / PODOTACTILE"]]
 for i, z in enumerate(R["zones"], 1):
     L = z["len"]; t = sum(L.values()); a, n = ZK["zones"][z["name"]]
     rows.append([str(i), z["name"], Bar(L["sep"] / t, GREEN, 44 * mm), Bar(a / n if n else 0, RED, 44 * mm)])
-s.append(Table(rows, colWidths=[9 * mm, 77 * mm, 48 * mm, 48 * mm],
+s.append(Table(rows, colWidths=[9 * mm, 63 * mm, 48 * mm, 62 * mm],
                style=tstyle([("ALIGN", (0, 0), (1, -1), "LEFT"), ("ALIGN", (0, 0), (0, -1), "CENTER"),
                              ("FONT", (0, 1), (0, -1), "InB", 7.4), ("TEXTCOLOR", (0, 1), (0, -1), colors.HexColor(ACC))])))
-s.append(Spacer(1, 34))
+s.append(Spacer(1, 26))
 
 s += section("04", "Traversées", "Passages piétons, bordures et feux sonores")
 def c_(cnt, k): return cnt.get(k, 0)
 def grp(t): return [Paragraph(f'<font name="InS">{t}</font>', st(fontSize=7.3)), "", ""]
 low = c_(ks["kerb"], "lowered") + c_(ks["kerb"], "flush")
 rows = [["INDICATEUR", "NOMBRE", "PART"],
-        grp(f"Passages piétons ({ncr})"),
+        grp("Passages piétons"),
         ["Type de passage indiqué", typed, Bar(typed / ncr, GREEN)],
         ["Bande podotactile indiquée", tact, Bar(tact / ncr, GREEN)],
         ["Type de bordure indiqué", kerbnode, Bar(kerbnode / ncr, AMBER)],
         ["Îlot refuge indiqué", ncr - c_(cs["island"], "absent"), Bar((ncr - c_(cs["island"], "absent")) / ncr, RED)],
-        grp(f"Bordures cartographiées ({ks['n']})"),
+        grp("Bordures cartographiées"),
         ["Abaissées ou à niveau", low, Bar(low / ks["n"], GREEN)],
         ["Traversées avec bordure aux extrémités", f"{ks['xway_ends_kerb']}/{ks['xway_ends']}", Bar(ks["xway_ends_kerb"] / ks["xway_ends"], RED)],
-        grp(f"Feux piétons ({nps})"),
+        grp("Feux piétons"),
         ["Présence du son indiquée", snd, Bar(snd / nps, AMBER)],
         ["Feux sonores confirmés", ss["sound"].get("yes", 0), Bar(ss["sound"].get("yes", 0) / nps, RED)],
         ["Bouton d'appel indiqué", nps - ss["button"].get("absent", 0), Bar((nps - ss["button"].get("absent", 0)) / nps, AMBER)]]
@@ -307,7 +307,7 @@ mw = FW - 99 * mm - 5 * mm
 s.append(Table([[t3, card(f"{OUTDIR}/map_crossings.png", mw, mw)]], colWidths=[99 * mm + 5 * mm, mw],
                style=[("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
                       ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, -1), 0)]))
-s.append(Spacer(1, 34))
+s.append(Spacer(1, 26))
 
 s += section("05", "Recommandations", "Constats et priorités d'action")
 zsorted = sorted(R["zones"], key=lambda z: z["len"]["sep"] / max(1, sum(z["len"].values())))
