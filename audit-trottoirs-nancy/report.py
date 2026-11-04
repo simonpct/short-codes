@@ -55,7 +55,7 @@ def legend(ax, handles, title=None, fs=6):
     if title: lg.get_title().set_fontweight("semibold")
 
 xs = [p[0] for p in R["city"]]; ys = [p[1] for p in R["city"]]
-MAP_AR = 0.76
+MAP_AR = 0.72
 X0, X1 = min(xs) - 60, max(xs) + 60
 cyy = (min(ys) + max(ys)) / 2; hh = (X1 - X0) * MAP_AR
 Y0, Y1 = cyy - hh / 2, cyy + hh / 2
@@ -93,7 +93,7 @@ def cr_cat(t):
         return "sig_snd" if "traffic_signals:sound" in t else "sig"
     return "full" if (t.get("crossing") not in (None, "yes") and "tactile_paving" in t and "kerb" in t) else "part"
 CC = {"sig_snd": (ACC, "Feu piéton — son renseigné", 7), "sig": (RED, "Feu piéton — son non renseigné", 7),
-      "full": (GREEN, "Passage complet (type, bande d'éveil, bordure)", 3.2), "part": (AMBER, "Passage incomplet", 3.2)}
+      "full": (GREEN, "Passage complet (type, bande podotactile, bordure)", 3.2), "part": (AMBER, "Passage incomplet", 3.2)}
 for k in ["part", "full", "sig", "sig_snd"]:
     pts = [c[0] for c in R["crossings"] if cr_cat(c[1]) == k]
     ax.scatter([p[0] for p in pts], [p[1] for p in pts], s=CC[k][2], c=CC[k][0], lw=0.25 if k.startswith("sig") else 0,
@@ -199,8 +199,8 @@ def page1(c, doc):
     c.setFillColor(colors.HexColor("#1e3a5f")); c.roundRect(PW - M - tw, PH - 17.5 * mm, tw, 6 * mm, 3 * mm, stroke=0, fill=1)
     c.setFillColor(colors.white); c.setFont("InS", 7); c.drawCentredString(PW - M - tw / 2, PH - 15.3 * mm, txt)
     gap = 3.5 * mm; w = (FW - 3 * gap) / 4; h = 24 * mm; y = PH - HEAD1 - h / 2 + 2 * mm
-    data = [(pct(LB["sep"], TOT), "de la voirie bordée d'un\ntrottoir dessiné", GREEN),
-            (pct(LB["none"], TOT), "de la voirie sans\ntrottoir dessiné", RED),
+    data = [(f"{round(100 * LB['sep'] / TOT)} %", "de la voirie bordée d'un\ntrottoir dessiné", GREEN),
+            (f"{100 - round(100 * LB['sep'] / TOT)} %", "de la voirie sans\ntrottoir dessiné", RED),
             (pct(ss["sound"].get("absent", 0), nps), f"des {nps} feux piétons sans\ninformation sonore", ACC),
             (pct(kerbnode, ncr), f"des {ncr} passages piétons\navec bordure renseignée", AMBER)]
     for i, (v, l, col) in enumerate(data): kpi_card(c, M + i * (w + gap), y, w, h, v, l, col)
@@ -230,7 +230,7 @@ s = [NextPageTemplate("p2")]
 # ===== PAGE 1 =====
 s += section("01", "Trottoirs", "Couverture des trottoirs dans OpenStreetMap")
 s.append(card(f"{OUTDIR}/map_sidewalks.png", FW, FW * MAP_AR))
-s.append(Spacer(1, 8))
+s.append(Spacer(1, 14))
 
 s += section("02", "Contributeurs", "Qui maintient les trottoirs ?")
 NAMES = {"simonpct": "Simon PICOT"}
@@ -278,7 +278,7 @@ for i, z in enumerate(R["zones"], 1):
 s.append(Table(rows, colWidths=[9 * mm, 77 * mm, 48 * mm, 48 * mm],
                style=tstyle([("ALIGN", (0, 0), (1, -1), "LEFT"), ("ALIGN", (0, 0), (0, -1), "CENTER"),
                              ("FONT", (0, 1), (0, -1), "InB", 7.4), ("TEXTCOLOR", (0, 1), (0, -1), colors.HexColor(ACC))])))
-s.append(Spacer(1, 16))
+s.append(Spacer(1, 34))
 
 s += section("04", "Traversées", "Passages piétons, bordures et feux sonores")
 def c_(cnt, k): return cnt.get(k, 0)
@@ -287,17 +287,15 @@ low = c_(ks["kerb"], "lowered") + c_(ks["kerb"], "flush")
 rows = [["INDICATEUR", "NOMBRE", "PART"],
         grp(f"Passages piétons ({ncr})"),
         ["Type de passage indiqué", typed, Bar(typed / ncr, GREEN)],
-        ["Bande d'éveil (DEV) indiquée", tact, Bar(tact / ncr, GREEN)],
+        ["Bande podotactile indiquée", tact, Bar(tact / ncr, GREEN)],
         ["Type de bordure indiqué", kerbnode, Bar(kerbnode / ncr, AMBER)],
         ["Îlot refuge indiqué", ncr - c_(cs["island"], "absent"), Bar((ncr - c_(cs["island"], "absent")) / ncr, RED)],
         grp(f"Bordures cartographiées ({ks['n']})"),
         ["Abaissées ou à niveau", low, Bar(low / ks["n"], GREEN)],
-        ["Hauteur mesurée", ks["height"], Bar(ks["height"] / ks["n"], RED)],
         ["Traversées avec bordure aux extrémités", f"{ks['xway_ends_kerb']}/{ks['xway_ends']}", Bar(ks["xway_ends_kerb"] / ks["xway_ends"], RED)],
         grp(f"Feux piétons ({nps})"),
         ["Présence du son indiquée", snd, Bar(snd / nps, AMBER)],
         ["Feux sonores confirmés", ss["sound"].get("yes", 0), Bar(ss["sound"].get("yes", 0) / nps, RED)],
-        ["Vibreur indiqué", nps - ss["vibration"].get("absent", 0), Bar((nps - ss["vibration"].get("absent", 0)) / nps, AMBER)],
         ["Bouton d'appel indiqué", nps - ss["button"].get("absent", 0), Bar((nps - ss["button"].get("absent", 0)) / nps, AMBER)]]
 grp_rows = [i for i, r in enumerate(rows) if i and r[1] == ""]
 ts = tstyle([("SPAN", (0, i), (-1, i)) for i in grp_rows] +
@@ -309,19 +307,19 @@ mw = FW - 99 * mm - 5 * mm
 s.append(Table([[t3, card(f"{OUTDIR}/map_crossings.png", mw, mw)]], colWidths=[99 * mm + 5 * mm, mw],
                style=[("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
                       ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, -1), 0)]))
-s.append(Spacer(1, 16))
+s.append(Spacer(1, 34))
 
 s += section("05", "Recommandations", "Constats et priorités d'action")
 zsorted = sorted(R["zones"], key=lambda z: z["len"]["sep"] / max(1, sum(z["len"].values())))
 weak = ", ".join(z["name"].split(" (")[0].split(" / ")[0] for z in zsorted[:3])
 y26 = CT["years"].get(DATE[:4], 0)
 recs = [
-    ("Trottoirs", RED, f"{pct(LB['none'], TOT)} de la voirie ({LB['none'] / 1000:.0f} km) n'a pas encore de trottoir cartographié, surtout en périphérie. "
+    ("Trottoirs", RED, f"{100 - round(100 * LB['sep'] / TOT)} % de la voirie ({(TOT - LB['sep']) / 1000:.0f} km) n'a pas encore de trottoir cartographié, surtout en périphérie. "
                        f"Les compléter en priorité dans les secteurs les moins couverts : {weak}."),
     ("Feux sonores", ACC, f"{ss['sound'].get('absent', 0)} feux piétons sur {nps} n'indiquent pas s'ils sont sonores, et seuls {ss['sound'].get('yes', 0)} sont confirmés sonores. "
-                          "Un relevé de terrain (son, vibreur, bouton d'appel) est à mener, en priorité autour du CHRU et des Rives de Meurthe."),
-    ("Bordures", AMBER, f"{pct(*ZK['city'])} des trottoirs reliés à un passage piéton n'ont pas d'information complète sur la bordure ou la bande d'éveil (DEV). "
-                        "C'est l'information clé pour les personnes en fauteuil roulant et les personnes aveugles : à relever à chaque traversée."),
+                          "Un relevé de terrain (son, bouton d'appel) est à mener, en priorité autour du CHRU et des Rives de Meurthe."),
+    ("Bordures", AMBER, f"{pct(*ZK['city'])} des trottoirs reliés à un passage piéton n'ont pas d'information complète sur la bordure ou la bande podotactile. "
+                        "C'est l'information clé pour les personnes en fauteuil roulant et les personnes déficientes visuelles : à relever à chaque traversée."),
     ("Maintenance", GREEN, f"La donnée est vivante : {pct(y26, CT['n'])} des trottoirs ont été mis à jour en {DATE[:4]}. "
                            "Pérenniser cette maintenance (travaux, nouveaux aménagements) par un partenariat entre la collectivité et les contributeurs."),
 ]
