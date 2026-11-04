@@ -16,15 +16,17 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.lib.fonts import addMapping
 
 R = pickle.load(open(sys.argv[1], "rb")); OUTDIR = sys.argv[2]; PDF = sys.argv[3]
-DATE = sys.argv[4]; FONTDIR = sys.argv[5]
+DATE = sys.argv[4]; FONTDIR = sys.argv[5]; CT = pickle.load(open(sys.argv[6], "rb"))
+# fusion : « renseigné sur la chaussée seulement » = trottoir non dessiné
+R["pieces"] = [(g, "none" if c == "tag" else c) for g, c in R["pieces"]]
+R["length_by"]["none"] += R["length_by"].pop("tag", 0)
 
 # ---------------- palette ----------------
 NAVY = "#0b1f33"; INK = "#0f172a"; MUTED = "#64748b"; LINE = "#e2e8f0"; SOFT = "#f8fafc"
 ACC = "#4f46e5"
 GREEN, AMBER, RED, GREY = "#10b981", "#f59e0b", "#ef4444", "#94a3b8"
 COL = {"sep": GREEN, "tag": AMBER, "no": GREY, "none": RED}
-LAB = {"sep": "Trottoir dessiné (voie séparée)", "tag": "Renseigné sur la chaussée seulement",
-       "no": "Absence déclarée (sidewalk=no)", "none": "Aucune information"}
+LAB = {"sep": "Trottoir dessiné", "no": "Pas de trottoir déclaré", "none": "Trottoir non dessiné"}
 
 # ---------------- maps ----------------
 plt.rcParams.update({"font.family": "Inter", "font.size": 7, "text.color": INK})
@@ -53,14 +55,14 @@ def legend(ax, handles, title=None, fs=6):
     if title: lg.get_title().set_fontweight("semibold")
 
 xs = [p[0] for p in R["city"]]; ys = [p[1] for p in R["city"]]
-MAP_AR = 0.76
+MAP_AR = 0.72
 X0, X1 = min(xs) - 60, max(xs) + 60
 cyy = (min(ys) + max(ys)) / 2; hh = (X1 - X0) * MAP_AR
 Y0, Y1 = cyy - hh / 2, cyy + hh / 2
 
 fig = plt.figure(figsize=(7.4, 7.4 * MAP_AR), dpi=300)
 ax = fig.add_axes([0, 0, 1, 1]); base(ax)
-for c in ["no", "tag", "none", "sep"]:
+for c in ["no", "none", "sep"]:
     segs = [p[0] for p in R["pieces"] if p[1] == c]
     ax.add_collection(LineCollection(segs, colors=COL[c], linewidths=1.15, capstyle="round",
                                      zorder=3.5 if c == "none" else 3))
@@ -72,10 +74,11 @@ for i, z in enumerate(R["zones"], 1):
     ax.add_patch(Circle((lx, ly), 70, fc=ACC, ec="white", lw=1, zorder=7))
     ax.text(lx, ly - 4, str(i), ha="center", va="center", color="white", fontsize=6, weight="bold", zorder=8)
 ax.set_xlim(X0, X1); ax.set_ylim(Y0, Y1)
-h = [Line2D([], [], color=COL[c], lw=2.6, solid_capstyle="round", label=LAB[c]) for c in ["sep", "tag", "no", "none"]]
+h = [Line2D([], [], color=COL[c], lw=2.6, solid_capstyle="round", label=LAB[c]) for c in ["sep", "none", "no"]]
 h.append(Line2D([], [], marker="o", ls="", mfc=(0.31, 0.27, 0.9, 0.12), mec=ACC, ms=8, label="Zone de micromapping prioritaire"))
 legend(ax, h, "Voirie analysée")
-scalebar(ax, X1 - 750, Y0 + 160)
+scalebar(ax, X1 - 750, Y0 + 200)
+ax.text(X1 - 60, Y0 + 60, "© contributeurs OpenStreetMap", ha="right", va="bottom", fontsize=4.5, color=MUTED, zorder=10)
 fig.savefig(f"{OUTDIR}/map_sidewalks.png", dpi=300); plt.close(fig)
 
 # zoom crossings
@@ -161,7 +164,7 @@ def tstyle(extra=()):
 
 # ---------------- page decorations ----------------
 PW, PH = A4; M = 14 * mm; FW = PW - 2 * M
-HEAD1 = 64 * mm   # hauteur bandeau page 1
+HEAD1 = 84 * mm   # hauteur bandeau page 1
 
 def kpi_card(c, x, y, w, h, val, lab, color):
     c.setFillColor(colors.white); c.setStrokeColor(colors.HexColor(LINE)); c.setLineWidth(0.6)
@@ -172,8 +175,6 @@ def kpi_card(c, x, y, w, h, val, lab, color):
     for i, line in enumerate(lab.split("\n")): c.drawString(x + 4 * mm, y + 6.2 * mm - i * 8.2, line)
 
 def footer(c, doc):
-    c.setFont("In", 6); c.setFillColor(colors.HexColor(MUTED))
-    c.drawString(M, 8 * mm, f"Données © contributeurs OpenStreetMap (ODbL) · extraction API OSM du {DATE} · périmètre : commune de Nancy (relation 52399)")
     c.setFont("InS", 6.5); c.setFillColor(colors.HexColor(INK)); c.drawRightString(PW - M, 8 * mm, f"{doc.page:02d} / 02")
 
 def page1(c, doc):
@@ -183,16 +184,21 @@ def page1(c, doc):
     for i in range(14): c.line(PW - 70 * mm + i * 6 * mm, PH, PW - 30 * mm + i * 6 * mm, PH - HEAD1 + 18 * mm)
     c.setFillColor(colors.HexColor("#a5b4fc")); c.setFont("InS", 7)
     c.drawString(M, PH - 15 * mm, "AUDIT OPENSTREETMAP  ·  ACCESSIBILITÉ PIÉTONNE")
-    c.setFillColor(colors.white); c.setFont("IDB", 25); c.drawString(M, PH - 26 * mm, "Cheminements piétons")
-    c.setFillColor(colors.HexColor("#c7d2fe")); c.drawString(M, PH - 35.5 * mm, "de Nancy")
-    c.setFillColor(colors.HexColor("#94a3b8")); c.setFont("In", 8)
-    c.drawString(M, PH - 42.5 * mm, f"Trottoirs · micromapping · passages piétons · bordures · feux sonores — {TOT / 1000:.0f} km de voirie analysés")
+    c.setFillColor(colors.white); c.setFont("IDB", 25); c.drawString(M, PH - 26 * mm, "Cartographie OSM à Nancy")
+    c.setFillColor(colors.HexColor("#c7d2fe")); c.drawString(M, PH - 35.5 * mm, "Couverture à 100 % + Maintenance")
+    intro = Paragraph(
+        "<b>OpenStreetMap</b> est la plus grande carte collaborative ouverte au monde. Elle est à la cartographie ce que "
+        "Wikipédia est aux encyclopédies. Avec un groupe de contributeurs bénévoles, nous avons cartographié la plupart "
+        "des cheminements piétons à Nancy. Ces données, directement exploitables par des applications de guidage telles que "
+        "<b>SonarVision</b>, ont une valeur inestimable pour les utilisateurs déficients visuels.",
+        st(fontSize=8.6, leading=12.4, textColor=colors.HexColor("#cbd5e1")))
+    iw, ih = intro.wrap(FW * 0.86, 40 * mm); intro.drawOn(c, M, PH - 43 * mm - ih)
     txt = "Novembre 2026"; tw = pdfmetrics.stringWidth(txt, "InS", 7) + 8 * mm
     c.setFillColor(colors.HexColor("#1e3a5f")); c.roundRect(PW - M - tw, PH - 17.5 * mm, tw, 6 * mm, 3 * mm, stroke=0, fill=1)
     c.setFillColor(colors.white); c.setFont("InS", 7); c.drawCentredString(PW - M - tw / 2, PH - 15.3 * mm, txt)
     gap = 3.5 * mm; w = (FW - 3 * gap) / 4; h = 24 * mm; y = PH - HEAD1 - h / 2 + 2 * mm
     data = [(pct(LB["sep"], TOT), "de la voirie bordée d'un\ntrottoir dessiné", GREEN),
-            (pct(LB["none"], TOT), "de la voirie sans aucune\ninformation trottoir", RED),
+            (pct(LB["none"], TOT), "de la voirie sans\ntrottoir dessiné", RED),
             (pct(ss["sound"].get("absent", 0), nps), f"des {nps} feux piétons sans\ninformation sonore", ACC),
             (pct(kerbnode, ncr), f"des {ncr} passages piétons\navec bordure renseignée", AMBER)]
     for i, (v, l, col) in enumerate(data): kpi_card(c, M + i * (w + gap), y, w, h, v, l, col)
@@ -201,7 +207,7 @@ def page1(c, doc):
 def page2(c, doc):
     c.saveState()
     c.setFillColor(colors.HexColor(NAVY)); c.rect(0, PH - 11 * mm, PW, 11 * mm, stroke=0, fill=1)
-    c.setFillColor(colors.white); c.setFont("ID", 8.5); c.drawString(M, PH - 7 * mm, "Cheminements piétons de Nancy")
+    c.setFillColor(colors.white); c.setFont("ID", 8.5); c.drawString(M, PH - 7 * mm, "Cartographie OSM à Nancy")
     c.setFillColor(colors.HexColor("#a5b4fc")); c.setFont("InS", 6.5); c.drawRightString(PW - M, PH - 7 * mm, "AUDIT OPENSTREETMAP  ·  NOVEMBRE 2026")
     footer(c, doc); c.restoreState()
 
@@ -224,32 +230,40 @@ s += section("01", "Trottoirs", "Couverture des trottoirs dans OpenStreetMap")
 s.append(card(f"{OUTDIR}/map_sidewalks.png", FW, FW * MAP_AR))
 s.append(Spacer(1, 7))
 
-hw_order = ["trunk", "primary", "secondary", "tertiary", "unclassified", "residential", "living_street"]
-hw_fr = {"trunk": "Artère", "primary": "Principale", "secondary": "Secondaire", "tertiary": "Tertiaire",
-         "unclassified": "Non classée", "residential": "Résidentielle", "living_street": "Zone de rencontre"}
-rows = [["TYPE DE VOIE", "LINÉAIRE", "TROTTOIR DESSINÉ", "TAG CHAUSSÉE", "SANS INFO"]]
-for k in hw_order:
-    c = R["length_by_hw"].get(k)
-    if not c: continue
-    t = sum(c.values())
-    rows.append([hw_fr[k], f"{t / 1000:.1f} km", Bar(c["sep"] / t, GREEN), pct(c["tag"], t), Bar(c["none"] / t, RED)])
-rows.append(["Total", f"{TOT / 1000:.1f} km", Bar(LB["sep"] / TOT, GREEN), pct(LB["tag"], TOT), Bar(LB["none"] / TOT, RED)])
-tbl = Table(rows, colWidths=[25 * mm, 17 * mm, 30 * mm, 19 * mm, 30 * mm],
-            style=tstyle([("FONT", (0, -1), (-1, -1), "InS", 7.2), ("LINEABOVE", (0, -1), (-1, -1), 0.8, colors.HexColor(INK))]))
-worst = max((k for k in hw_order if k in R["length_by_hw"]), key=lambda k: R["length_by_hw"][k]["none"])
-txt = (f"<b>{R['n_sidewalk_ways']} tronçons</b> {code('footway=sidewalk')} ({R['sidewalk_len'] / 1000:.0f} km) sont dessinés : "
-       f"<b>{pct(LB['sep'], TOT)}</b> du linéaire de voirie en est bordé. À l'inverse, <b>{pct(LB['none'], TOT)}</b> "
-       f"({LB['none'] / 1000:.0f} km, en rouge) n'ont <b>aucune</b> information trottoir, surtout en voies "
-       f"<b>{hw_fr[worst].lower()}s</b> des quartiers périphériques (nord-ouest, est le long de la Meurthe).")
-meth = (f"Critère : chaque tronçon de 10 m est « dessiné » si une voie {code('footway=sidewalk')} passe à moins de 18 m "
-        f"ou si la chaussée porte {code('sidewalk=separate')}. Hors voies rapides, service et rues piétonnes.")
-s.append(Table([[tbl, [Paragraph(txt, BODY), Spacer(1, 4), Paragraph(meth, SMALL)]]], colWidths=[123 * mm, FW - 123 * mm],
-               style=[("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 0),
-                      ("RIGHTPADDING", (0, 0), (-1, -1), 0), ("LEFTPADDING", (1, 0), (1, 0), 7 * mm)]))
+s += section("02", "Contributeurs", "Qui maintient les trottoirs ?")
+class Contrib(Flowable):
+    def wrap(self, aw, ah): return FW, 27 * mm
+    def draw(self):
+        c = self.canv; gap = 3.5 * mm; w = (FW - 3 * gap) / 4; h = 27 * mm
+        top3 = CT["top"][:3]; L = CT["len"]; N = CT["n"]
+        for i, (u, n, l) in enumerate(top3):
+            x = i * (w + gap)
+            c.setFillColor(colors.white); c.setStrokeColor(colors.HexColor(LINE)); c.setLineWidth(0.6)
+            c.roundRect(x, 0, w, h, 3 * mm, stroke=1, fill=1)
+            c.setFillColor(colors.HexColor("#eef2ff")); c.circle(x + 7 * mm, h - 7 * mm, 3.2 * mm, stroke=0, fill=1)
+            c.setFillColor(colors.HexColor(ACC)); c.setFont("InB", 8); c.drawCentredString(x + 7 * mm, h - 8.1 * mm, str(i + 1))
+            c.setFillColor(colors.HexColor(INK)); c.setFont("InS", 8.2); c.drawString(x + 12.5 * mm, h - 8.2 * mm, u)
+            c.setFont("IDB", 17); c.drawString(x + 4 * mm, h - 17 * mm, f"{100 * l / L:.1f} %".replace(".", ","))
+            bw = w - 8 * mm
+            c.setFillColor(colors.HexColor("#eef2f7")); c.roundRect(x + 4 * mm, 7 * mm, bw, 1.6 * mm, 0.8 * mm, stroke=0, fill=1)
+            c.setFillColor(colors.HexColor(ACC)); c.roundRect(x + 4 * mm, 7 * mm, max(1.6 * mm, bw * l / L), 1.6 * mm, 0.8 * mm, stroke=0, fill=1)
+            c.setFillColor(colors.HexColor(MUTED)); c.setFont("In", 6.4)
+            c.drawString(x + 4 * mm, 3 * mm, f"{n} tronçons · {l / 1000:.0f} km de trottoirs")
+        x = 3 * (w + gap); tl = sum(t[2] for t in top3); y26 = CT["years"].get(DATE[:4], 0)
+        c.setFillColor(colors.HexColor(NAVY)); c.roundRect(x, 0, w, h, 3 * mm, stroke=0, fill=1)
+        c.setFillColor(colors.HexColor("#a5b4fc")); c.setFont("InS", 6.4); c.drawString(x + 4 * mm, h - 7 * mm, "TOP 3 CUMULÉ")
+        c.setFillColor(colors.white); c.setFont("IDB", 17); c.drawString(x + 4 * mm, h - 15.5 * mm, f"{100 * tl / L:.1f} %".replace(".", ","))
+        c.setFillColor(colors.HexColor("#cbd5e1")); c.setFont("In", 6.4)
+        c.drawString(x + 4 * mm, 7.2 * mm, f"{CT['users']} contributeurs au total")
+        c.drawString(x + 4 * mm, 3 * mm, f"{100 * y26 / N:.0f} % modifiés en {DATE[:4]}")
+s.append(Contrib())
+s.append(Spacer(1, 3))
+s.append(Paragraph(f"Part du linéaire de trottoirs ({CT['len'] / 1000:.0f} km, {CT['n']} tronçons {code('footway=sidewalk')}) selon l'auteur de la "
+                   "<b>dernière modification</b> de chaque tronçon (et non de sa création).", SMALL))
 s.append(PageBreak())
 
 # ===== PAGE 2 =====
-s += section("02", "Micromapping", "Zones prioritaires : patrimoine, flux et services")
+s += section("03", "Micromapping", "Zones prioritaires : patrimoine, flux et services")
 rows = [["#", "ZONE", "TROTTOIR DESSINÉ", "PASSAGES", "PODOTACT.", "FEUX · SON RENSEIGNÉ", "BORDURES", "AREA:HW"]]
 for i, z in enumerate(R["zones"], 1):
     L = z["len"]; t = sum(L.values())
@@ -263,7 +277,7 @@ s.append(Spacer(1, 2))
 s.append(Paragraph("Cercles de 280 à 380 m autour de lieux emblématiques (UNESCO, pôle gare, hypercentre, Art nouveau, CHRU, port) — numérotés sur les deux cartes.", SMALL))
 s.append(Spacer(1, 12))
 
-s += section("03", "Traversées", "Passages piétons, bordures et feux sonores")
+s += section("04", "Traversées", "Passages piétons, bordures et feux sonores")
 def c_(cnt, k): return cnt.get(k, 0)
 def grp(t): return [Paragraph(f'<font name="InS">{t}</font>', st(fontSize=7.2)), "", ""]
 rows = [["INDICATEUR", "NOMBRE", "TAUX"],
@@ -294,11 +308,11 @@ s.append(Table([[t3, [card(f"{OUTDIR}/map_crossings.png", mw, mw), Spacer(1, 2),
                style=[("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0)]))
 s.append(Spacer(1, 12))
 
-s += section("04", "Recommandations", "Constats et priorités d'action")
+s += section("05", "Recommandations", "Constats et priorités d'action")
 zsorted = sorted(R["zones"], key=lambda z: z["len"]["sep"] / max(1, sum(z["len"].values())))
 weak = ", ".join(z["name"].split(" (")[0].split(" / ")[0] for z in zsorted[:3])
 recs = [
-    ("Trottoirs", RED, f"{pct(LB['none'], TOT)} du linéaire sans information. Renseigner a minima {code('sidewalk:both/left/right')} puis dessiner les trottoirs séparés dans les zones les moins couvertes ({weak})."),
+    ("Trottoirs", RED, f"{pct(LB['none'], TOT)} du linéaire de voirie ({LB['none'] / 1000:.0f} km) sans trottoir dessiné, surtout en périphérie. Les dessiner en priorité dans les zones les moins couvertes ({weak}), puis assurer leur maintenance."),
     ("Feux sonores", ACC, f"{ss['sound'].get('absent', 0)} feux piétons sur {nps} sans {code('traffic_signals:sound')}, seuls {ss['sound'].get('yes', 0)} déclarés sonores. Relevé terrain (son, vibreur, bouton), en priorité au CHRU et aux Rives de Meurthe."),
     ("Bordures", AMBER, f"Seules {pct(ks['xway_ends_kerb'], ks['xway_ends'])} des extrémités de traversées portent un nœud bordure, aucune hauteur mesurée. Ajouter {code('barrier=kerb')} + {code('kerb=*')} à chaque jonction."),
     ("Micromapping", GREEN, f"Seul le pôle gare dispose de surfaces {code('area:highway')}. Étendre ce niveau de détail à Stanislas, la Vieille-Ville et l'hypercentre via des cartoparties (StreetComplete, GoMap!!, JOSM)."),
